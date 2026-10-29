@@ -37,8 +37,8 @@
     <moduleBuilder builderClass="com.intellij.java.promo.PromoSpringModuleBuilder"/>
 
     <registryKey key="idea.ultimate.features.hints.enabled"
-                 defaultValue="true"
-                 description="IntelliJ IDEA Ultimate features in UI"/>
+                 defaultValue="false"
+                 description="IntelliJ IDEA Ultimate features in UI. Kedr disables Ultimate promos and the locked settings entries by default."/>
   </extensions>
 
   <actions resource-bundle="messages.JavaUiBundle">

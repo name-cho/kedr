@@ -9,6 +9,7 @@ import com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.FeatureProm
 import com.intellij.pycharm.community.ide.impl.PyCharmCommunityCustomizationBundle
 import javax.swing.Icon
 import javax.swing.JComponent
+import com.intellij.openapi.util.registry.Registry
 import kotlin.reflect.KClass
 
 abstract class ProPromoConfigurable : ConfigurableWithId, Configurable.Promo {
@@ -21,6 +22,9 @@ abstract class ProPromoConfigurableProvider(private val clazz: KClass<out Config
   final override fun createConfigurable(): Configurable? {
     return clazz.java.getConstructor().newInstance()
   }
+
+  // Kedr: do not show the "Pro feature" promo page in the Settings tree.
+  final override fun canCreateConfigurable(): Boolean = Registry.`is`("idea.ultimate.features.hints.enabled")
 }
 
 internal class PromoDatabaseConfigurableProvider : ProPromoConfigurableProvider(PromoDatabaseConfigurable::class)
