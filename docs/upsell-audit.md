@@ -63,3 +63,35 @@ assume the JetBrains vendor:
 
 JetBrains-specific features that key off `idea.vendor.name == "JetBrains"` (GDPR consent
 uploads, account integration) are now disabled by construction, which is what we want.
+
+## Ultimate "feature" promo locks in the Settings tree
+
+Upstream shows greyed-out, padlocked entries for Ultimate-only features plus "try Ultimate"
+promo pages. They come from the java-promo module (IDEA) and the
+intellij.pycharm.community.ide.impl.promotion module (PyCharm), which register
+pplicationConfigurables (ids promo.database, promo.kubernetes, promo.javascript,
+promo.typescript, promo.swagger, promo.profiler) and a batch of AllIcons.Ultimate.Lock
+actions.
+
+Kedr change (commit 7e07b064):
+
+1. java-promo/.../community-integration.xml: the registry key
+   idea.ultimate.features.hints.enabled now defaults to **false**. Every promo provider checks
+   this flag, so the locked settings groups and the Spring/Persistence/Endpoints/Database/
+   Kubernetes/OpenAPI/Profiler promo actions are not created.
+2. python/.../promotion/.../configurables.kt: ProPromoConfigurableProvider now also answers
+   canCreateConfigurable() from the same flag, hiding the PyCharm Pro promo pages.
+
+None of the promo classes are bundled in the Kedr distributions (verified against the built
+ZIPs), so the padlocked nodes do not appear in the shipped product; the change is a
+future-proof guarantee that they cannot reappear if the promo modules get assembled.
+
+### Free alternatives for the padlocked features
+
+| Locked (Ultimate) feature | Free alternative |
+| --- | --- |
+| Java Profiler | JFR: record via run config VM options (-XX:StartFlightRecording=...) and open the .jfr; or the free Async Profiler agent |
+| Kubernetes | kubectl/official CLI + YAML editing (no vendor lock); "Kubernetes by Red Hat" is free but is a separate Marketplace plugin, not bundled |
+| Database | DBeaver (standalone); within the IDE a JDBC connection can be driven from a run config or the bundled JDBC console; "Database Navigator" is a free Marketplace plugin, not bundled |
+| JavaScript / TypeScript | Use the LSP route: the open LSP client is in intellij.platform.lsp; 	ypescript-language-server + gopls-style wiring gives completion/diagnostics without the Ultimate JS engine |
+| OpenAPI Specifications | Edit openapi.yaml/openapi.json as plain text/YAML with JSON Schema; request preview via the HTTP client |
