@@ -30,6 +30,7 @@ jvm_library(
         "//platform/execution",
         "//platform/projectModel-api:projectModel",
         "//platform/projectModel-impl",
+        "//platform/platform-util-io:ide-util-io",
     ],
 )
 

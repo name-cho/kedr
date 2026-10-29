@@ -14,7 +14,7 @@ class GoFileType : LanguageFileType(GoLanguage) {
   }
 
   override fun getName(): String = "Go"
-  override fun getDescription(): @NlsContexts.Description String = "Go source file"
+  override fun getDescription(): String = "Go source file"
   override fun getDefaultExtension(): String = "go"
   override fun getIcon(): javax.swing.Icon? = null
 }
