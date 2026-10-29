@@ -20,10 +20,5 @@
     <fileType name="Go" extensions="go" language="Go"
               fieldName="INSTANCE" implementationClass="com.kedr.golang.GoFileType"/>
     <platform.lsp.integrationProvider implementation="com.kedr.golang.GoLspIntegrationProvider"/>
-    <applicationConfigurable groupId="language"
-                             id="com.kedr.go.settings"
-                             bundle="messages.GoBundle"
-                             key="go.settings.display.name"
-                             instance="com.kedr.golang.GoConfigurable"/>
   </extensions>
 </idea-plugin>

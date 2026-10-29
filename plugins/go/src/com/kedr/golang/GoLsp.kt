@@ -37,10 +37,8 @@ class GoLspClientDescriptor(module: Module) :
 
   override fun isSupportedFile(file: VirtualFile): Boolean = GoFileType.INSTANCE == file.fileType
 
-  override fun createCommandLine(): GeneralCommandLine {
-    val binary = GoSettings.goExecutable ?: "gopls"
-    return GeneralCommandLine(binary).withParameters("serve")
-  }
+  override fun createCommandLine(): GeneralCommandLine =
+    GeneralCommandLine("gopls").withParameters("serve")
 
   override fun createInitializationOptions(): Any? = null
 
