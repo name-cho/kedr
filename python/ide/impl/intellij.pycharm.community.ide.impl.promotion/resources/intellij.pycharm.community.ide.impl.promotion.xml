@@ -104,6 +104,9 @@
     <registryKey key="py.community.to.unified.test.ignore.release.channel"
                  defaultValue="false"
                  description="Ignores Release Channel requirement for promo mock update"/>
+    <registryKey key="idea.ultimate.features.hints.enabled"
+                 defaultValue="false"
+                 description="IntelliJ IDEA Ultimate features in UI. Kedr hides the Pro promo and locked settings entries in PyCharm by default."/>
     <statistics.counterUsagesCollector implementationClass="com.intellij.pycharm.community.ide.impl.promotion.PyCharmPromoCollector"/>
     <statistics.counterUsagesCollector
       implementationClass="com.intellij.pycharm.community.ide.impl.promotion.communityToUnified.statistics.PyCommunityUnifiedPromoFusCollector"/>
