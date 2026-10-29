@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<idea-plugin>
+  <dependencies>
+    <module name="intellij.python.pytools"/>
+    <module name="intellij.python.pytools.ui"/>
+    <module name="intellij.python.community"/>
+    <module name="intellij.python.sdk"/>
+  </dependencies>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <python.pytools.pyTool implementation="com.intellij.python.mypy.MypyPyTool"/>
+  </extensions>
+</idea-plugin>

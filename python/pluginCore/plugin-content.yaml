@@ -11,6 +11,9 @@
 - name: lib/modules/intellij.python.black.jar
   contentModules:
   - name: intellij.python.black
+- name: lib/modules/intellij.python.mypy.jar
+  contentModules:
+  - name: intellij.python.mypy
 - name: lib/modules/intellij.python.community.aliasProvider.jar
   contentModules:
   - name: intellij.python.community.aliasProvider
