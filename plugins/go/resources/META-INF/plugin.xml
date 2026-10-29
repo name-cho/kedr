@@ -13,8 +13,11 @@
 
   <depends>com.intellij.modules.platform</depends>
   <depends>com.intellij.modules.lang</depends>
-  <depends>com.intellij.platform.lsp</depends>
-  <depends>org.jetbrains.plugins.textmate</depends>
+
+  <dependencies>
+    <module name="intellij.platform.lsp"/>
+    <module name="intellij.textmate"/>
+  </dependencies>
 
   <extensions defaultExtensionNs="com.intellij">
     <fileType name="Go" extensions="go" language="Go"
