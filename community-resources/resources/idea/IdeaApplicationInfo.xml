@@ -1,0 +1,13 @@
+<component xmlns="http://jetbrains.org/intellij/schema/application-info">
+  <version eap="false" major="2026" minor="2.3"/>
+  <company name="Kedr Project" shortName="Kedr" copyrightStart="2026"/>
+  <build number="IC-__BUILD__" date="__BUILD_DATE__" majorReleaseDate="20260716"/>
+  <logo url="/idea_community_logo.png"/>
+  <icon svg="/idea-ce.svg" svg-small="/idea-ce_16.svg"/>
+  <icon-eap svg="/idea-ce-eap.svg" svg-small="/idea-ce-eap_16.svg"/>
+  <names product="Kedr Studio" fullname="Kedr Studio" script="kedr" motto="The free IDE for Java, Kotlin, Python, Go and the web"/>
+
+  <essential-plugin>com.intellij.java</essential-plugin>
+  <essential-plugin>com.intellij.java.ide</essential-plugin>
+  <essential-plugin>com.intellij.modules.json</essential-plugin>
+</component>

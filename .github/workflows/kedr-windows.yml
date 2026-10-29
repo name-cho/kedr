@@ -1,0 +1,33 @@
+name: Kedr Windows Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      product:
+        description: 'studio, python or both'
+        type: choice
+        options: [both, studio, python]
+        default: both
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: kedr-${{ github.ref }}-${{ github.event.inputs.product }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.product == 'both' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        product: [studio, python]
+    uses: ./.github/workflows/kedr-windows-build.yml
+    with:
+      product: ${{ matrix.product }}
+
+  build-single:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.product != 'both' }}
+    uses: ./.github/workflows/kedr-windows-build.yml
+    with:
+      product: ${{ github.event.inputs.product }}

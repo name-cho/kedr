@@ -1,0 +1,86 @@
+name: Kedr Windows Product Build
+
+on:
+  workflow_call:
+    inputs:
+      product:
+        description: 'studio or python'
+        type: string
+        required: true
+
+env:
+  BAZEL_OUTPUT_ROOT: D:/bazelroot
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 240
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Checkout Android modules
+        run: |
+          git clone --depth 1 --branch 262.9437 https://github.com/JetBrains/android.git android
+
+      - name: Configure Bazel
+        run: |
+          $root = $env:BAZEL_OUTPUT_ROOT
+          @(
+            "startup --output_user_root=$root"
+            "startup:windows --output_user_root=$root"
+            "startup --host_jvm_args=-Djava.net.preferIPv4Stack=true"
+            "startup:windows --host_jvm_args=-Djava.net.preferIPv4Stack=true"
+          ) | Set-Content -Encoding ascii -Path "$env:USERPROFILE\.bazelrc"
+
+      - name: Cache Bazel repository
+        uses: actions/cache@v4
+        with:
+          path: |
+            D:/bazelroot/cache
+            D:/bazelroot/install
+          key: kedr-bazel-${{ hashFiles('MODULE.bazel.lock', 'MODULE.bazel', '.bazelversion') }}
+          restore-keys: |
+            kedr-bazel-
+
+      - name: Build
+        run: |
+          $entry = if ('${{ inputs.product }}' -eq 'python') { 'python\installers.cmd' } else { 'installers.cmd' }
+          $log = "build-${{ inputs.product }}.log"
+          $args = "-Dintellij.build.target.os=current -Dintellij.build.skip.build.steps=windows_exe_installer"
+          cmd /c "$entry $args > $log 2>&1"
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content $log -Tail 200
+            throw "build failed with exit code $LASTEXITCODE"
+          }
+
+      - name: Verify artifacts
+        run: |
+          $dir = if ('${{ inputs.product }}' -eq 'python') { 'out/kedr-python/artifacts' } else { 'out/kedr-studio/artifacts' }
+          $zip = Get-ChildItem $dir -Filter "*.win.zip" | Where-Object { $_.Name -notmatch 'aarch64' } | Select-Object -First 1
+          if (-not $zip) { throw "no portable ZIP in $dir" }
+          "{0} {1:N0} bytes" -f $zip.Name, $zip.Length
+
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: log-${{ inputs.product }}
+          path: build-${{ inputs.product }}.log
+          retention-days: 7
+
+      - name: Upload portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kedr-${{ inputs.product }}-win-x64
+          path: |
+            out/kedr-${{ inputs.product }}/artifacts/*.win.zip
+          if-no-files-found: error
+          retention-days: 14
