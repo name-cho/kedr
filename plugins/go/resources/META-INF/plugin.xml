@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<idea-plugin url="https://github.com/name-cho/kedr">
+  <id>com.kedr.go</id>
+  <name>Go (Kedr)</name>
+  <vendor>Kedr Project</vendor>
+  <description><![CDATA[
+      Go language support for Kedr. The editor experience is provided by the
+      <code>gopls</code> language server through the open LSP client: completion,
+      diagnostics, hover, go-to-definition, formatting and import management.
+      Syntax highlighting uses the TextMate Go grammar bundled with the
+      TextMate plugin.
+    ]]></description>
+
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.lang</depends>
+  <depends>com.intellij.platform.lsp</depends>
+  <depends>org.jetbrains.plugins.textmate</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <fileType name="Go" extensions="go" language="Go"
+              fieldName="INSTANCE" implementationClass="com.kedr.golang.GoFileType"/>
+    <platform.lsp.integrationProvider implementation="com.kedr.golang.GoLspIntegrationProvider"/>
+    <applicationConfigurable groupId="language"
+                             id="com.kedr.go.settings"
+                             bundle="messages.GoBundle"
+                             key="go.settings.display.name"
+                             instance="com.kedr.golang.GoConfigurable"/>
+  </extensions>
+</idea-plugin>
