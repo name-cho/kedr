@@ -31,6 +31,8 @@ jvm_library(
         "//platform/projectModel-api:projectModel",
         "//platform/projectModel-impl",
         "//platform/platform-util-io:ide-util-io",
+        "//platform/lang-core:lang-core",
+        "//platform/util:util-ui",
     ],
 )
 

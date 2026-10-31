@@ -23,5 +23,6 @@
     <fileType name="Go" extensions="go" language="Go"
               fieldName="INSTANCE" implementationClass="com.kedr.golang.GoFileType"/>
     <platform.lsp.integrationProvider implementation="com.kedr.golang.GoLspIntegrationProvider"/>
+    <newProjectWizard.languageGenerator implementation="com.kedr.golang.GoNewProjectWizard"/>
   </extensions>
 </idea-plugin>

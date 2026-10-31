@@ -160,19 +160,26 @@ object LanguageAndRegionUi {
           model.selectedItem = RegionSettings.getRegion()
         })
 
-        regionBox.gap(RightGap.SMALL)
-        cell(ContextHelpLabel.createWithBrowserLink(null, IdeBundle.message("combobox.region.hint"),
-                                                    IdeBundle.message("combobox.region.hint.link"), URL(helpUrl)))
+        if (helpUrl != null) {
+          regionBox.gap(RightGap.SMALL)
+          cell(ContextHelpLabel.createWithBrowserLink(null, IdeBundle.message("combobox.region.hint"),
+                                                      IdeBundle.message("combobox.region.hint.link"), URL(helpUrl)))
+        }
       }
       else {
         regionBox.bindItem({ RegionSettings.getRegion() }, { RegionSettings.setRegion(it ?: Region.NOT_SET) })
 
-        regionBox.comment(IdeBundle.message("combobox.region.comment", helpUrl))
+        if (helpUrl != null) {
+          regionBox.comment(IdeBundle.message("combobox.region.comment", helpUrl))
 
-        regionBox.comment?.addHyperlinkListener { e ->
-          if (e.eventType == HyperlinkEvent.EventType.ACTIVATED) {
-            LocalizationActionsStatistics.hyperLinkActivated(source)
+          regionBox.comment?.addHyperlinkListener { e ->
+            if (e.eventType == HyperlinkEvent.EventType.ACTIVATED) {
+              LocalizationActionsStatistics.hyperLinkActivated(source)
+            }
           }
+        }
+        else {
+          regionBox.comment(IdeBundle.message("combobox.region.hint"))
         }
       }
 
