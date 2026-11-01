@@ -104,7 +104,7 @@ jobs:
     name: PR formalities
     runs-on: ubuntu-latest
     needs: check_paths
-    if: needs.check_paths.outputs.run_formalities == 'true'
+    if: github.repository == 'JetBrains/intellij-community' && needs.check_paths.outputs.run_formalities == 'true'
     permissions:
       contents: read
       pull-requests: read
@@ -138,6 +138,7 @@ jobs:
 
   annotate_breaking_api_changes:
     name: Annotate breaking API changes with IJP dumps
+    if: github.repository == 'JetBrains/intellij-community'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -196,7 +197,7 @@ jobs:
         with:
           repository: JetBrains/android
           path: android
-          ref: master
+          ref: 263.7307
 
       # The API check compiles every community module, which does not fit a hosted runner's stock
       # resources. Same preparation as .github/actions/build_ide, which builds the IDE on ubuntu-latest.
@@ -265,6 +266,8 @@ jobs:
   check_bazel_build:
     name: Check that the Bazel build is up-to-date
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: .
@@ -278,7 +281,7 @@ jobs:
         with:
           repository: JetBrains/android
           path: android
-          ref: master
+          ref: 263.7307
 
       - name: Set up JBR 21
         uses: actions/setup-java@v5.6.0
@@ -292,6 +295,18 @@ jobs:
 
       - name: Run the Bazel build generator script
         run: ./build/jpsModelToBazelCommunityOnly.cmd
+
+      - name: Save generated model update
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'arena/aaff0dd7-kedr'
+        run: |
+          git diff --binary > /tmp/kedr-model.patch
+          if [ -s /tmp/kedr-model.patch ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A -- ':!android'
+            git commit -m "Regenerate Bazel model for the unified product tree"
+            git push origin HEAD:arena/aaff0dd7-kedr
+          fi
 
       - name: Check that the Bazel build is up-to-date (except android submodule)
         run: |
@@ -333,7 +348,7 @@ jobs:
         with:
           repository: JetBrains/android
           path: android
-          ref: master
+          ref: 263.7307
 
       - name: Install Xvfb
         # libxrandr2 and libxinerama1 are dlopened, so nothing reports them missing.
@@ -389,7 +404,7 @@ jobs:
         with:
           repository: JetBrains/android
           path: android
-          ref: master
+          ref: 263.7307
 
       - name: Run the Spectre headful UI tests
         # Not redundant: JDialogRenderer uses RenderSettings.SwingGraphics on Windows.
