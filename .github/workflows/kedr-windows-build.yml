@@ -28,7 +28,7 @@ jobs:
 
       - name: Checkout Android modules
         run: |
-          git clone --depth 1 --branch 262.9437 https://github.com/JetBrains/android.git android
+          git clone --depth 1 --branch 263.7307 https://github.com/JetBrains/android.git android
 
       - name: Configure Bazel
         run: |

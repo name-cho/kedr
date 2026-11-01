@@ -3,7 +3,9 @@ package com.intellij.platform.backend.observation
 
 import kotlinx.coroutines.CompletableJob
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -11,6 +13,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.jetbrains.annotations.Nls
 import org.junit.jupiter.api.RepeatedTest
+import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random.Default.nextInt
 
@@ -106,6 +109,46 @@ class PlatformActivityTrackerServiceTest {
         launchedJob.cancel()
       }
       assert(!flow.value)
+    }
+  }
+
+  // this test hammers one activity key with blocking activities from several threads.
+  // It covers the compare-and-swap loops of `enterConfiguration` and `leaveConfiguration` under contention.
+  @RepeatedTest(20)
+  fun blockingActivitiesOnSingleKeyTest(): Unit = runBlocking {
+    withTimeout(60_000) {
+      val service = PlatformActivityTrackerService(this)
+      coroutineScope {
+        repeat(8) {
+          launch(Dispatchers.Default) {
+            repeat(200) {
+              service.trackConfigurationActivityBlocking(Key1) {}
+            }
+          }
+        }
+      }
+      // a blocking activity leaves the configuration asynchronously, so wait for the counter to drain
+      while (service.getAllKeys().isNotEmpty()) {
+        delay(10)
+      }
+      assert(!service.isInProgress(Key1))
+      assert(!service.configurationFlow.value)
+    }
+  }
+
+  @Test
+  fun launchTrackedInCanceledScopeTest(): Unit = runBlocking {
+    withTimeout(10_000) {
+      val service = PlatformActivityTrackerService(this)
+      lateinit var tracked: Job
+      launch {
+        cancel()
+        tracked = service.trackConfigurationActivityBlocking(Key1) {
+          launchTracked {}
+        }
+      }.join()
+      assert(tracked.isCancelled)
+      service.awaitConfiguration(Key1)
     }
   }
 }

@@ -61,6 +61,7 @@ jvm_library(
 exports_files(
     [
         "intellij.go.iml",
+        "resources/META-INF/plugin.xml",
     ],
     visibility = ["//visibility:public"],
 )

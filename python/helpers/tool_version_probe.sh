@@ -143,7 +143,7 @@ print("true" if callable(is_gil_enabled) and not is_gil_enabled() else "false")
   esac
 
   version_output=$("$python_path" --version 2>&1) || return 1
-  printf '{"isExecutable":true,"freeThreaded":%s,"versionOutput":' "$free_threaded"
+  printf '{"status":"executable","freeThreaded":%s,"versionOutput":' "$free_threaded"
   json_string "$version_output"
   printf '}'
 }
@@ -190,12 +190,14 @@ emit_environment_probes_in_directory() {
 #   --python <path-or-empty>
 #   --detect-environments <directory-or-empty>
 #   repeated <tool-name> <search-path-count> <search-path>...
+# A relative --detect-environments directory resolves against the process working directory.
 # A search path is one of:
 #   absolute <directory>
 #   env <variable> <component-count> <component>...
 #   home <component-count> <component>...
 # stdout is one JSON object containing shell, home, python, environments, and found tools. Exit 2 means malformed argv.
-# python is null when not requested, minimal isExecutable=false on failure, and a full object on success.
+# python is null when not requested, {"status":"notExecutable"} on failure, and a full "executable" object on success.
+# The status values must match the serial names of TargetPythonProbe in TargetToolProbe.kt.
 [ "$#" -ge 4 ] || exit 2
 [ "$1" = "--python" ] || exit 2
 PYTHON_PATH=$2
@@ -227,7 +229,7 @@ if [ -z "$PYTHON_PATH" ]; then
 elif python_probe=$(run_python_probe "$PYTHON_PATH"); then
   printf '%s' "$python_probe"
 else
-  printf '{"isExecutable":false}'
+  printf '{"status":"notExecutable"}'
 fi
 printf ',"environments":['
 
@@ -235,6 +237,11 @@ first_environment=1
 if [ -n "$DETECT_ENVIRONMENTS_DIRECTORY" ]; then
   REQUESTED_WORKING_DIRECTORY=$DETECT_ENVIRONMENTS_DIRECTORY
   REQUESTED_WORKING_DIRECTORY_CANONICAL=$(canonical_directory "$REQUESTED_WORKING_DIRECTORY")
+  # A relative directory gives relative environment paths, so probe it through its absolute path.
+  case "$REQUESTED_WORKING_DIRECTORY" in
+    /*) ;;
+    *) REQUESTED_WORKING_DIRECTORY=$REQUESTED_WORKING_DIRECTORY_CANONICAL ;;
+  esac
   TARGET_WORKING_DIRECTORY=$(pwd -P 2>/dev/null || true)
   if [ -n "$REQUESTED_WORKING_DIRECTORY_CANONICAL" ]; then
     emit_environment_probes_in_directory "$REQUESTED_WORKING_DIRECTORY"

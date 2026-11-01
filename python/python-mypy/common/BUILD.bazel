@@ -1,0 +1,42 @@
+load("@rules_jvm//:jvm.bzl", "jvm_library")
+load("//platform/build-scripts/bazel-rules:content_module_jar.bzl", "content_module_jar")
+
+### auto-generated section `dev intellij.python.mypy.common` start
+content_module_jar(module = ":common")
+### auto-generated section `dev intellij.python.mypy.common` end
+
+### auto-generated section `build intellij.python.mypy.common` start
+jvm_library(
+    name = "common",
+    srcs = glob(
+        [
+            "src/**/*.kt",
+            "src/**/*.java",
+        ],
+        allow_empty = True,
+    ),
+    module_name = "intellij.python.mypy.common",
+    resource_strip_prefix = "resources",
+    resources = glob(
+        ["resources/**/*"],
+    ),
+    visibility = ["//visibility:public"],
+    deps = [
+        # do not sort,
+        "@lib//:kotlin-stdlib",
+        "//libraries/kotlinx/serialization/core",
+        "//platform/util",
+        "//python/python-pytools/common",
+    ],
+)
+### auto-generated section `build intellij.python.mypy.common` end
+
+### auto-generated section `iml intellij.python.mypy.common` start
+exports_files(
+    [
+        "intellij.python.mypy.common.iml",
+        "resources/intellij.python.mypy.common.xml",
+    ],
+    visibility = ["//visibility:public"],
+)
+### auto-generated section `iml intellij.python.mypy.common` end

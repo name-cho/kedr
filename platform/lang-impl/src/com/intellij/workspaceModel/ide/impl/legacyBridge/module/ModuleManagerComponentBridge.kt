@@ -11,7 +11,8 @@ import com.intellij.openapi.module.impl.ModuleComponentManager
 import com.intellij.openapi.project.ModuleListener.TOPIC
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.InitProjectActivity
-import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFileManager
+import com.intellij.openapi.vfs.pointers.VirtualFilePointer
 import com.intellij.platform.backend.workspace.WorkspaceModel
 import com.intellij.platform.diagnostic.telemetry.impl.span
 import com.intellij.platform.workspace.jps.OrphanageWorkerEntitySource
@@ -31,7 +32,6 @@ import com.intellij.platform.workspace.storage.url.VirtualFileUrlManager
 import com.intellij.serviceContainer.getComponentManagerImpl
 import com.intellij.serviceContainer.precomputeModuleLevelExtensionModel
 import com.intellij.workspaceModel.ide.getJpsProjectConfigLocation
-import com.intellij.workspaceModel.ide.impl.VirtualFileUrlBridge
 import com.intellij.workspaceModel.ide.impl.jps.serialization.BaseIdeSerializationContext
 import com.intellij.workspaceModel.ide.impl.jps.serialization.CachingJpsFileContentReader
 import com.intellij.workspaceModel.ide.impl.legacyBridge.facet.FacetEntityChangeListener
@@ -123,6 +123,10 @@ open class ModuleManagerComponentBridge(private val project: Project, coroutineS
 
       LOG.debug { "${change.newEntity.name} module initialized" }
       builder.mutableModuleMap.addMapping(change.newEntity, bridge)
+      if (builder.referrers(change.newEntity.symbolicId, LibraryEntity::class.java).any()) {
+        (ModuleRootComponentBridge.getInstance(bridge).getModuleLibraryTable() as ModuleLibraryTableBridgeImpl)
+          .takeOverModuleLibraryInstances(builder)
+      }
     }
   }
 
@@ -166,7 +170,7 @@ open class ModuleManagerComponentBridge(private val project: Project, coroutineS
     }
 
     val moduleFileUrl = getModuleVirtualFileUrl(moduleEntity)!!
-    LocalFileSystem.getInstance().refreshAndFindFileByNioFile(moduleFileUrl.toPath())
+    VirtualFileManager.getInstance().refreshAndFindFileByNioPath(moduleFileUrl.toPath())
     return moduleEntity
   }
 
@@ -190,7 +194,7 @@ open class ModuleManagerComponentBridge(private val project: Project, coroutineS
       moduleEntityId = symbolicId,
       name = name,
       project = project,
-      virtualFileUrl = virtualFileUrl as? VirtualFileUrlBridge,
+      virtualFileUrl = virtualFileUrl as? VirtualFilePointer,
       entityStorage = entityStorage,
       diff = diff,
       componentManager = componentManager,
