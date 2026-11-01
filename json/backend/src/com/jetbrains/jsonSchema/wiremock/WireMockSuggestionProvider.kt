@@ -1,10 +1,8 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-@file:OptIn(IntellijInternalApi::class)
 
 package com.jetbrains.jsonSchema.wiremock
 
 import com.intellij.ide.IdeBundle
-import com.intellij.openapi.util.IntellijInternalApi
 import com.intellij.ide.plugins.PluginManager
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.json.JsonFileType
@@ -22,7 +20,7 @@ import com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.PluginSugge
 import com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.PluginSuggestionProvider
 import com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.createTryUltimateActionLabel
 import com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.installAndEnable
-import com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.tryUltimateIsDisabled
+import com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.isTryUltimateDisabledByUser
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDirectory
 import com.intellij.psi.PsiFile
@@ -32,13 +30,14 @@ import com.intellij.psi.util.CachedValuesManager
 import com.intellij.ui.EditorNotificationPanel
 import com.intellij.ui.EditorNotificationPanel.Status
 import com.intellij.ui.EditorNotifications
+import org.jetbrains.annotations.ApiStatus
 
 internal class WireMockSuggestionProvider : PluginSuggestionProvider {
 
   override fun getSuggestion(project: Project, file: VirtualFile): PluginSuggestion? {
     if (!FileTypeManager.getInstance().isFileOfType(file, JsonFileType.INSTANCE)) return null
 
-    if (isPluginSuggestionDismissed() || tryUltimateIsDisabled()) return null
+    if (isPluginSuggestionDismissed() || isTryUltimateDisabledByUser()) return null
 
     val requiredPluginId = PluginId.getId(WIREMOCK_PLUGIN_ID)
     if (PluginManager.isPluginInstalled(requiredPluginId)) return null

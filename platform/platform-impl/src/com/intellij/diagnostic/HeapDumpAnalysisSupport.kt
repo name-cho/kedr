@@ -7,7 +7,7 @@ import com.intellij.diagnostic.hprof.action.AnalysisRunnable
 import com.intellij.diagnostic.hprof.action.getHeapDumpReportText
 import com.intellij.diagnostic.report.HeapReportProperties
 import com.intellij.diagnostic.report.MemoryReportReason
-import com.intellij.ide.plugins.IdeaPluginDescriptor
+import com.intellij.featureStatistics.fusCollectors.LifecycleUsageTriggerCollector
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.components.Service
@@ -15,6 +15,8 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Attachment
 import com.intellij.openapi.diagnostic.ErrorReportSubmitter
 import com.intellij.openapi.diagnostic.IdeaLoggingEvent
+import com.intellij.openapi.diagnostic.ProblematicPluginInfo
+import com.intellij.openapi.diagnostic.UnhandledExceptionKind
 import com.intellij.openapi.extensions.ExtensionNotApplicableException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
@@ -34,23 +36,21 @@ internal class HeapDumpAnalysisSupport {
     fun getInstance(): HeapDumpAnalysisSupport = service<HeapDumpAnalysisSupport>()
   }
 
-  fun getPrivacyPolicyUrl(): String = "https://www.jetbrains.com/company/privacy.html"
+  fun getReportHelpUrl(): String = "https://github.com/name-cho/kedr/blob/main/docs/troubleshooting.md"
 
   @RequiresEdt(generateAssertion = false)
-  fun uploadReport(
+  fun saveReport(
     reportText: String,
     heapReportProperties: HeapReportProperties,
     parentComponent: Component,
-    automaticReport: Boolean = false,
   ) {
     ThreadingAssertions.assertEventDispatchThread()
 
-    val messageText = if (automaticReport) "Heap analysis results (auto)" else "Heap analysis results"
     val text = getHeapDumpReportText(reportText, heapReportProperties)
     val attachment = Attachment("report.txt", text).apply { isIncluded = true }
-    attachment.isIncluded = true
-    val event = IdeaLoggingEvent(messageText, OutOfMemoryError(), listOf(attachment), null as IdeaPluginDescriptor?, null)
-    ErrorReportSubmitter.EP_NAME.findExtension(ITNReporter::class.java)?.submit(arrayOf(event), null, parentComponent) { }
+    val event = IdeaLoggingEvent("Heap analysis results", OutOfMemoryError(), listOf(attachment),
+                                 null as ProblematicPluginInfo?, null, UnhandledExceptionKind.HANDLED)
+    ErrorReportSubmitter.EP_NAME.findExtension(KedrErrorReportSubmitter::class.java)?.submit(arrayOf(event), null, parentComponent) { }
   }
 
   /**
@@ -74,9 +74,13 @@ internal class HeapDumpAnalysisSupport {
     }
   }
 
-  fun analysisFailed(heapProperties: HeapReportProperties) { }
+  fun analysisFailed(heapProperties: HeapReportProperties) {
+    LifecycleUsageTriggerCollector.onMemoryReportFailed()
+  }
 
-  fun analysisComplete(heapProperties: HeapReportProperties) { }
+  fun analysisComplete(heapProperties: HeapReportProperties) {
+    LifecycleUsageTriggerCollector.onMemoryReportPrepared()
+  }
 }
 
 internal class AnalyzePendingSnapshotActivity: ProjectActivity {

@@ -1,0 +1,68 @@
+load("@rules_jvm//:jvm.bzl", "jvm_library")
+load("//platform/build-scripts/bazel-rules:content_module_jar.bzl", "content_module_jar")
+
+### auto-generated section `dev intellij.python.mypy` start
+content_module_jar(module = ":mypy")
+### auto-generated section `dev intellij.python.mypy` end
+
+### auto-generated section `build intellij.python.mypy` start
+jvm_library(
+    name = "mypy",
+    srcs = glob(
+        [
+            "src/**/*.kt",
+            "src/**/*.java",
+            "src/**/*.form",
+        ],
+        allow_empty = True,
+    ),
+    module_name = "intellij.python.mypy",
+    resource_strip_prefix = "resources",
+    resources = glob(
+        ["resources/**/*"],
+    ),
+    visibility = ["//visibility:public"],
+    deps = [
+        # do not sort,
+        "@lib//:kotlin-stdlib",
+        "//platform/util",
+        "//platform/core-api:core",
+        "//platform/projectModel-api:projectModel",
+        "//python/openapi:community",
+        "//python/python-mypy/common",
+        "//python/python-pytools/backend",
+        "//python/python-pytools/common",
+    ],
+)
+jvm_library(
+    name = "mypy_test_lib",
+    testonly = True,
+    srcs = glob(
+        [],
+        allow_empty = True,
+    ),
+    module_name = "intellij.python.mypy",
+    visibility = ["//visibility:public"],
+    runtime_deps = [
+        # do not sort,
+        ":mypy",
+        "//platform/util:util_test_lib",
+        "//platform/core-api:core_test_lib",
+        "//platform/projectModel-api:projectModel_test_lib",
+        "//python/openapi:community_test_lib",
+        "//python/python-mypy/common:common_test_lib",
+        "//python/python-pytools/backend:backend_test_lib",
+        "//python/python-pytools/common:common_test_lib",
+    ],
+)
+### auto-generated section `build intellij.python.mypy` end
+
+### auto-generated section `iml intellij.python.mypy` start
+exports_files(
+    [
+        "intellij.python.mypy.iml",
+        "resources/intellij.python.mypy.xml",
+    ],
+    visibility = ["//visibility:public"],
+)
+### auto-generated section `iml intellij.python.mypy` end

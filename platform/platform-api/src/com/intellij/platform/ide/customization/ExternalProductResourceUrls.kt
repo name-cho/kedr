@@ -76,6 +76,9 @@ interface ExternalProductResourceUrls {
   val downloadPageUrl: Url?
     get() = null
 
+  val commercialEditionSuggestionsEnabled: Boolean
+    get() = true
+
   /**
    * Returns URL of the YouTube channel containing video material for the product. 
    * It's opened in the browser when a user invokes "`<Product>` on YouTube" action.
@@ -146,6 +149,6 @@ interface FeedbackReporter {
    * @return `true` if the custom form was shown, and `false` otherwise;
    * in the latter case, the default way with opening [feedbackFormUrl] in the browser will be used.
    */
-  @RequiresEdt
+  @RequiresEdt(generateAssertion = false /* IJPL-115548 */)
   fun showFeedbackForm(project: Project?, requestedForEvaluation: Boolean): Boolean = false
 }

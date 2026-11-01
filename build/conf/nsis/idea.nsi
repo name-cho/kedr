@@ -40,10 +40,10 @@ OutFile "${OUT_DIR}\${OUT_FILE}.exe"
 InstallDir "${DEFAULT_INST_DIR}"
 
 !define /date CURRENT_YEAR "%Y"
-VIAddVersionKey /LANG=0 "CompanyName" "JetBrains s.r.o."
+VIAddVersionKey /LANG=0 "CompanyName" "${MANUFACTURER}"
 VIAddVersionKey /LANG=0 "FileDescription" "${MUI_PRODUCT} Windows Installer"
 VIAddVersionKey /LANG=0 "FileVersion" "${VER_BUILD}"
-VIAddVersionKey /LANG=0 "LegalCopyright" "Copyright 2000-${CURRENT_YEAR} JetBrains s.r.o."
+VIAddVersionKey /LANG=0 "LegalCopyright" "Copyright ${CURRENT_YEAR} ${MANUFACTURER}"
 VIAddVersionKey /LANG=0 "ProductName" "${MUI_PRODUCT}"
 VIAddVersionKey /LANG=0 "ProductVersion" "${MUI_VERSION_MAJOR}.${MUI_VERSION_MINOR}"
 VIFileVersion ${FILE_VERSION_NUM}
@@ -563,8 +563,8 @@ Function UninstallRecord
   WriteRegStr SHCTX $0 "InstallLocation" "$INSTDIR"
   WriteRegStr SHCTX $0 "DisplayIcon" "$productLauncher"
   WriteRegStr SHCTX $0 "DisplayVersion" "${VER_BUILD}"
-  WriteRegStr SHCTX $0 "Publisher" "JetBrains s.r.o."
-  WriteRegStr SHCTX $0 "URLInfoAbout" "https://www.jetbrains.com/products"
+  WriteRegStr SHCTX $0 "Publisher" "${MANUFACTURER}"
+  WriteRegStr SHCTX $0 "URLInfoAbout" "https://github.com/name-cho/kedr"
   WriteRegDWORD SHCTX $0 "NoModify" 1
   WriteRegDWORD SHCTX $0 "NoRepair" 1
 FunctionEnd

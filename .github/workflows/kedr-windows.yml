@@ -4,20 +4,27 @@ on:
   workflow_dispatch:
     inputs:
       product:
-        description: 'studio, python or both'
+        description: Product to build
         type: choice
-        options: [both, studio, python]
+        options:
+          - both
+          - studio
+          - python
         default: both
   push:
-    tags: ['v*']
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
 
 concurrency:
-  group: kedr-${{ github.ref }}-${{ github.event.inputs.product }}
+  group: kedr-${{ github.ref }}-${{ github.event.inputs.product || 'both' }}
   cancel-in-progress: true
 
 jobs:
   build:
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.product == 'both' }}
+    if: github.event_name == 'push' || github.event.inputs.product == 'both'
     strategy:
       fail-fast: false
       matrix:
@@ -27,7 +34,54 @@ jobs:
       product: ${{ matrix.product }}
 
   build-single:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.product != 'both' }}
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.product != 'both'
     uses: ./.github/workflows/kedr-windows-build.yml
     with:
       product: ${{ github.event.inputs.product }}
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: kedr-*-win-x64
+          merge-multiple: true
+          path: release
+
+      - name: Verify checksums and prepare release assets
+        run: |
+          set -euo pipefail
+          test "$(find release -maxdepth 1 -name 'kedr-studio-*.win.zip' | wc -l)" -eq 1
+          test "$(find release -maxdepth 1 -name 'kedr-python-*.win.zip' | wc -l)" -eq 1
+          test "$(find release -maxdepth 1 -name 'kedr-studio-*.exe' | wc -l)" -eq 1
+          test "$(find release -maxdepth 1 -name 'kedr-python-*.exe' | wc -l)" -eq 1
+          cd release
+          for file in *.sha256; do sha256sum -c "$file"; done
+          for file in *.sha512; do sha512sum -c "$file"; done
+          sha256sum kedr-*.win.zip kedr-*.exe > SHA256SUMS
+          sha256sum -c SHA256SUMS
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          notes="docs/releases/$GITHUB_REF_NAME.md"
+          test -s "$notes"
+          flags=(--draft --verify-tag)
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            flags+=(--prerelease --latest=false)
+          fi
+          gh release create "$GITHUB_REF_NAME" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            "${flags[@]}" \
+            --notes-file "$notes" \
+            --title "Kedr Studio + Kedr Python $GITHUB_REF_NAME"

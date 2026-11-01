@@ -63,3 +63,36 @@ assume the JetBrains vendor:
 
 JetBrains-specific features that key off `idea.vendor.name == "JetBrains"` (GDPR consent
 uploads, account integration) are now disabled by construction, which is what we want.
+
+## Ultimate "feature" promo locks in the Settings tree
+
+Upstream shows greyed-out, padlocked entries for Ultimate-only features plus "try Ultimate"
+promo pages. They come from the java-promo module (IDEA) and the
+intellij.pycharm.community.ide.impl.promotion module (PyCharm), which register
+applicationConfigurables (ids promo.database, promo.kubernetes, promo.javascript,
+promo.typescript, promo.swagger, promo.profiler) and a batch of AllIcons.Ultimate.Lock
+actions.
+
+Kedr changes:
+
+The product descriptors no longer include the Java, Python or GitHub promo modules.
+Release verification checks the packaged layout and rejects these modules. Commercial-edition
+suggestions also have a separate product policy, which Kedr disables.
+
+### Free alternatives for the padlocked features
+
+| Locked (Ultimate) feature | Free alternative |
+| --- | --- |
+| Java Profiler | JFR: record via run config VM options (-XX:StartFlightRecording=...) and open the .jfr; or the free Async Profiler agent |
+| Kubernetes | kubectl/official CLI + YAML editing (no vendor lock); "Kubernetes by Red Hat" is free but is a separate Marketplace plugin, not bundled |
+| Database | DBeaver (standalone); within the IDE a JDBC connection can be driven from a run config or the bundled JDBC console; "Database Navigator" is a free Marketplace plugin, not bundled |
+| JavaScript / TypeScript | Use the LSP route: the open LSP client is in intellij.platform.lsp; 	ypescript-language-server + gopls-style wiring gives completion/diagnostics without the Ultimate JS engine |
+| OpenAPI Specifications | Edit openapi.yaml/openapi.json as plain text/YAML with JSON Schema; request preview via the HTTP client |
+
+## Error reporting
+
+Kedr registers `KedrErrorReportSubmitter` as the platform error handler. The IDE error
+dialog, startup failure dialog, and memory-use report save ZIP archives locally. The
+heap-dump path no longer asks for automatic-report consent and no longer uploads anything.
+`ITNReporter`, `ITNProxy`, `LogUploader`, and the Marketplace error submitter are not used by
+these Kedr flows.

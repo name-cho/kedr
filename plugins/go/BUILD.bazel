@@ -1,0 +1,70 @@
+load("@rules_jvm//:jvm.bzl", "jvm_library")
+
+### auto-generated section `build intellij.go` start
+
+jvm_library(
+    name = "go",
+    srcs = glob(
+        [
+            "src/**/*.kt",
+            "src/**/*.java",
+            "src/**/*.form",
+        ],
+        allow_empty = True,
+    ),
+    module_name = "intellij.go",
+    resource_strip_prefix = "resources",
+    resources = glob(
+        ["resources/**/*"],
+    ),
+    visibility = ["//visibility:public"],
+    deps = [
+        # do not sort,
+        "@lib//:kotlin-stdlib",
+        "//platform/core-api:core",
+        "//platform/lang-api:lang",
+        "//platform/platform-api:ide",
+        "//platform/platform-impl:ide-impl",
+        "//platform/lang-impl",
+        "//platform/lsp:lsp",
+        "//plugins/textmate",
+        "//platform/execution",
+        "//platform/projectModel-api:projectModel",
+        "//platform/projectModel-impl",
+        "//platform/platform-util-io:ide-util-io",
+        "//platform/lang-core:lang-core",
+        "//platform/util:util-ui",
+    ],
+)
+
+jvm_library(
+    name = "go_test_lib",
+    testonly = True,
+    srcs = glob(
+        [],
+        allow_empty = True,
+    ),
+    module_name = "intellij.go",
+    visibility = ["//visibility:public"],
+    runtime_deps = [
+        # do not sort,
+        ":go",
+        "//plugins/textmate:textmate_test_lib",
+        "//platform/core-api:core_test_lib",
+        "//platform/lang-api:lang_test_lib",
+        "//platform/platform-impl:ide-impl_test_lib",
+        "//platform/lang-impl:lang-impl_test_lib",
+        "//platform/lsp:lsp_test_lib",
+    ],
+)
+### auto-generated section `build intellij.go` end
+
+### auto-generated section `iml intellij.go` start
+exports_files(
+    [
+        "intellij.go.iml",
+        "resources/META-INF/plugin.xml",
+    ],
+    visibility = ["//visibility:public"],
+)
+### auto-generated section `iml intellij.go` end

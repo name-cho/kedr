@@ -1,0 +1,14 @@
+<idea-plugin visibility="internal">
+  <dependencies>
+    <module name="intellij.python.community"/>
+    <module name="intellij.python.mypy.common"/>
+    <module name="intellij.python.pytools.backend"/>
+    <module name="intellij.python.pytools.common"/>
+    <module name="intellij.python.sdk.backend"/>
+  </dependencies>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <python.pytools.pyTool implementation="com.intellij.python.mypy.MypyPyTool"/>
+    <projectSettings service="com.intellij.python.mypy.MypyConfiguration"/>
+  </extensions>
+</idea-plugin>

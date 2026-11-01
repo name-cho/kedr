@@ -1,11 +1,16 @@
-# Kedr
+﻿# Kedr
 
 Free, fully open-source desktop IDEs for Windows, built from the IntelliJ Platform
-source code: **Kedr Studio** (IntelliJ IDEA fork) and **Kedr Python** (PyCharm fork).
+source code:
 
-There is no subscription, no trial, no license dialog and no upsell anywhere in
+- **Kedr Studio** is a universal editor for source code, configuration and text
+  files, including Java, Kotlin, Python, Go and web languages.
+- **Kedr Python** is focused on professional Python development: interpreters and
+  environments, completion, navigation, refactoring, debugging, tests and type checking.
+
+There is no subscription, no trial, no license dialog and no Kedr upsell in
 either product: everything the upstream open-source build can do is available
-without an account.
+without an account. Third-party Marketplace plugins keep their own licensing.
 
 [README-upstream.md](README-upstream.md) keeps the original upstream build notes.
 
@@ -13,8 +18,8 @@ without an account.
 
 | Product | Based on | Executable | Build number prefix |
 | --- | --- | --- | --- |
-| Kedr Studio | IntelliJ IDEA Community 2026.2.3 | `bin\idea64.exe` | `IC-` |
-| Kedr Python | PyCharm Community 2026.2.3 | `bin\pycharm64.exe` | `PC-` |
+| Kedr Studio | IntelliJ IDEA Community 2026.3 | `bin\idea64.exe` | `IC-` |
+| Kedr Python | PyCharm Community 2026.3 | `bin\pycharm64.exe` | `PC-` |
 
 Build numbers and product codes (`IC`, `PC`) are intentionally unchanged, so
 Marketplace plugins that declare compatibility with these builds keep working.
@@ -35,10 +40,15 @@ Artifacts are produced in `out/kedr-studio/artifacts` and `out/kedr-python/artif
 - Rebranding: product names, icons, splash, installer artwork, About dialog,
   copyright holder (`Kedr Project`).
 - Promotions and vendor hooks removed: Marketplace "Staff Picks" group,
-  uninstall feedback URL, JetBrains account and GDPR consent paths, vendor help
-  and bug-report links, update checks from JetBrains servers.
-- **Kedr Studio bundles the Python plugin**, so IDEA works as a universal
-  editor for Java/Kotlin and Python out of the box.
+  commercial-edition suggestions, bundled promo modules, uninstall feedback URL,
+  JetBrains account and GDPR consent paths, vendor help and bug-report links,
+  update checks from JetBrains servers.
+- Error reports stay local: the IDE error dialog, startup failures and memory-use
+  reports save a ZIP archive on your computer instead of uploading anything.
+  See [docs/troubleshooting.md](docs/troubleshooting.md).
+- **Kedr Studio bundles Python and Go support.** Go has TextMate syntax highlighting
+  out of the box; completion, diagnostics, navigation and formatting are available
+  through `gopls` when it is installed on `PATH`. Python support is bundled as well.
 - **Russian language pack is bundled** in both products (`su.rus.language-pack`,
   MIT). The UI starts in English; the pack is offered on first start and can be
   switched at any time in Settings | Appearance & Behavior | System Settings | Language.
@@ -55,6 +65,8 @@ The pack is vendored under `third-party/plugins/rus-language-pack/` and wired in
 through `getAdditionalPluginPaths` in both product property classes. The copy
 shipped here has the `<icon>` element removed from `plugin.xml`: the 2026.2
 plugin schema rejects it and the build fails while listing bundled plugins.
+Provenance and the vendored jar checksum are recorded in
+[third-party/plugins/rus-language-pack/PROVENANCE.md](third-party/plugins/rus-language-pack/PROVENANCE.md).
 
 Python DAP Debugger (`intellij.python.dap.plugin`) is **not** bundled: 76 of its
 classes reference `com.intellij.platform.dap`, a closed-source JetBrains module
@@ -94,20 +106,27 @@ Build machine notes:
   installer, not the directory.
 - Do not edit Bazel build scripts while a build is running.
 
-## Continuous integration
+## Continuous integration and releases
 
 `.github/workflows/kedr-windows.yml` builds one or both products on
-`windows-2022` and uploads the portable ZIPs. It runs on `v*` tags and on
-manual dispatch; `.github/workflows/kedr-windows-build.yml` is the reusable
-per-product workflow.
+`windows-2022`. It runs on `v*` tags and on manual dispatch;
+`.github/workflows/kedr-windows-build.yml` is the reusable per-product workflow.
+Each build verifies the ZIP and NSIS installer, runs Windows smoke checks, and
+stages release assets with SHA-256/SHA-512 sidecars. Tag builds create a **draft**
+GitHub release containing both products and a combined `SHA256SUMS` file.
+`.github/workflows/kedr-checks.yml` runs the repository checks on pushes and pull
+requests.
+
+See [docs/release.md](docs/release.md) for the release process and
+[docs/troubleshooting.md](docs/troubleshooting.md) for common problems.
 
 ## License
 
-Kedr source is distributed under the Apache License 2.0 — see [LICENSE.txt](LICENSE.txt)
+Kedr source is distributed under the Apache License 2.0 вЂ” see [LICENSE.txt](LICENSE.txt)
 and [NOTICE.txt](NOTICE.txt):
 
-- [LICENSE.txt](LICENSE.txt) — Apache License 2.0, the license of this fork.
-- [LICENSE-JETBRAINS-BUILD-TERMS.txt](LICENSE-JETBRAINS-BUILD-TERMS.txt) — the
+- [LICENSE.txt](LICENSE.txt) вЂ” Apache License 2.0, the license of this fork.
+- [LICENSE-JETBRAINS-BUILD-TERMS.txt](LICENSE-JETBRAINS-BUILD-TERMS.txt) вЂ” the
   terms that ship with the upstream tree, kept unchanged for provenance.
 - Third-party components keep their own licenses; they are collected under
   `license/`, and the generated report is `license/third-party-libraries.html`

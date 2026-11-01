@@ -1,7 +1,11 @@
 load("@rules_jvm//:jvm.bzl", "jvm_library")
+load("//platform/build-scripts/bazel-rules:content_module_jar.bzl", "content_module_jar")
+
+### auto-generated section `dev intellij.gradle.dependencyUpdater` start
+content_module_jar(module = ":dependencyUpdater")
+### auto-generated section `dev intellij.gradle.dependencyUpdater` end
 
 ### auto-generated section `build intellij.gradle.dependencyUpdater` start
-
 jvm_library(
     name = "dependencyUpdater",
     srcs = glob(
@@ -75,6 +79,7 @@ jvm_library(
 exports_files(
     [
         "intellij.gradle.dependencyUpdater.iml",
+        "resources/intellij.gradle.dependencyUpdater.xml",
     ],
     visibility = ["//visibility:public"],
 )

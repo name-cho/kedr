@@ -39,3 +39,15 @@ Third-party components
 Third-party libraries and plugins included in this distribution keep their own
 licenses. Their texts are shipped in the `license/` directory and the full
 report is in `license/third-party-libraries.html`.
+
+This distribution bundles the Russian Language Pack (`su.rus.language-pack`),
+version 1.0.3, Copyright the Russian Language Pack authors, licensed under the
+MIT License. Upstream: https://gitflic.ru/project/russky/rus-jetbrains
+Provenance and the vendored jar checksum are recorded in
+third-party/plugins/rus-language-pack/PROVENANCE.md.
+
+This distribution bundles the Go TextMate grammar, Copyright (c) 2023 Furkan
+Ozalp, licensed under the MIT License. Upstream:
+https://github.com/worlpaker/go-syntax
+The license and pinned source revision are recorded in
+plugins/textmate/lib/bundles/go/LICENSE.txt and PROVENANCE.md.

@@ -11,12 +11,14 @@ import com.intellij.ide.plugins.PluginManagementPolicy
 import com.intellij.ide.plugins.PluginManagerConfigurable
 import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.ide.plugins.PluginNode
+import com.intellij.ide.plugins.PluginUtils
 import com.intellij.ide.plugins.RepositoryHelper
 import com.intellij.ide.plugins.advertiser.PluginData
 import com.intellij.ide.plugins.advertiser.PluginFeatureCacheService
 import com.intellij.ide.plugins.advertiser.PluginFeatureMap
 import com.intellij.ide.plugins.isBrokenPlugin
 import com.intellij.ide.plugins.marketplace.MarketplaceRequests
+import com.intellij.ide.plugins.newui.PluginDependencyModel
 import com.intellij.ide.plugins.newui.PluginUiModel
 import com.intellij.ide.plugins.newui.PluginUiModelBuilderFactory
 import com.intellij.ide.ui.PluginBooleanOptionDescriptor
@@ -39,6 +41,7 @@ import com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.PluginAdver
 import com.intellij.openapi.util.NlsContexts
 import com.intellij.openapi.util.NlsContexts.NotificationContent
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.platform.ide.customization.ExternalProductResourceUrls
 import com.intellij.ui.EditorNotificationPanel
 import com.intellij.ui.EditorNotifications
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
@@ -69,8 +72,12 @@ sealed interface PluginAdvertiserService {
       return getSuggestedCommercialIdeCode(thisProductCode) != null
     }
 
+    fun areCommercialEditionSuggestionsEnabled(): Boolean =
+      ExternalProductResourceUrls.getInstance().commercialEditionSuggestionsEnabled
+
     @JvmStatic
     fun getSuggestedCommercialIdeCode(activeProductCode: String): String? {
+      if (!areCommercialEditionSuggestionsEnabled()) return null
       return when (activeProductCode) {
         "IC", "AI" -> "IU"
         "PC" -> "PY"
@@ -246,10 +253,8 @@ open class PluginAdvertiserServiceImpl(
   /**
    * Checks if the plugin is compatible with the current build of the IDE.
    */
-  private fun isPluginCompatible(descriptor: IdeaPluginDescriptor): Boolean {
-    val incompatibilityReason = PluginManagerCore.checkBuildNumberCompatibility(descriptor, PluginManagerCore.buildNumber)
-    return incompatibilityReason == null
-  }
+  private fun isPluginCompatible(descriptor: IdeaPluginDescriptor): Boolean =
+    PluginManagerCore.isCompatible(descriptor, PluginManagerCore.buildNumber)
 
   private suspend fun fetchFeatures(
     features: Collection<UnknownFeature>,
@@ -368,16 +373,15 @@ open class PluginAdvertiserServiceImpl(
     }
 
     val builder = builderFactory.createBuilder(descriptor.pluginId)
-    .setName(descriptor.name)
-    .setSize("0")
-    .setDescription(descriptor.description)
-    .setChangeNotes(descriptor.changeNotes)
-    .setVersion(descriptor.version)
-    .setVendor(descriptor.vendor)
-    .setVendorDetails(descriptor.organization)
-    .setIsConverted(true)
-
-    descriptor.dependencies.forEach { builder.addDependency(it.pluginId.idString, it.isOptional) }
+      .setName(descriptor.name)
+      .setSize("0")
+      .setDescription(descriptor.description)
+      .setChangeNotes(descriptor.changeNotes)
+      .setVersion(descriptor.version)
+      .setVendor(descriptor.vendor)
+      .setVendorDetails(descriptor.organization)
+      .setIsConverted(true)
+      .setDependencies(descriptor.dependencies.map { PluginDependencyModel(it.pluginId, it.isOptional) })
     return builder.build()
   }
 
@@ -397,7 +401,7 @@ open class PluginAdvertiserServiceImpl(
       .filter { loadedPlugin ->
         when (val installedPlugin = PluginManagerCore.getPluginSet().findInstalledPlugin(loadedPlugin.pluginId)) {
           null -> true
-          else -> (!installedPlugin.isBundled || installedPlugin.allowBundledUpdate())
+          else -> PluginUtils.isUpdateable(installedPlugin)
                   && PluginDownloader.compareVersionsSkipBrokenAndIncompatible(loadedPlugin.version, installedPlugin) > 0
         }
       }.filter { PluginManagementPolicy.getInstance().canInstallPlugin(it) }
@@ -411,7 +415,7 @@ open class PluginAdvertiserServiceImpl(
    *   `notify`, which raises no balloon while an earlier balloon of the group is visible and none
    *   at all for a group the user set to no popup.
    */
-  @RequiresEdt
+  @RequiresEdt(generateAssertion = false /* IJPL-115548 */)
   private fun notifyUser(
     bundledPlugins: List<String>,
     suggestionPlugins: List<PluginDownloader>,
@@ -460,7 +464,7 @@ open class PluginAdvertiserServiceImpl(
 
       Pair(messagePresentation, notificationActions)
     }
-    else if (bundledPlugins.isNotEmpty() && !isIgnoreIdeSuggestion) {
+    else if (bundledPlugins.isNotEmpty() && !isIgnoreIdeSuggestion && !tryUltimateIsDisabled()) {
       IdeBundle.message(
         "plugins.advertiser.ultimate.features.detected",
         bundledPlugins.joinToString()
@@ -618,7 +622,7 @@ open class PluginAdvertiserServiceImpl(
     }
   }
 
-  @RequiresBackgroundThread
+  @RequiresBackgroundThread(generateAssertion = false /* IJPL-115548 */)
   private suspend fun rescanDependencies() {
     collectDependencyUnknownFeatures()
 
@@ -684,7 +688,11 @@ fun disableTryUltimate(project: Project) = setTryUltimateKey(project, true)
 fun enableTryUltimate(project: Project) = setTryUltimateKey(project, false)
 
 @ApiStatus.Internal
-fun tryUltimateIsDisabled(): Boolean = PropertiesComponent.getInstance().getBoolean(TRY_ULTIMATE_DISABLED_KEY)
+fun isTryUltimateDisabledByUser(): Boolean = PropertiesComponent.getInstance().getBoolean(TRY_ULTIMATE_DISABLED_KEY)
+
+@ApiStatus.Internal
+fun tryUltimateIsDisabled(): Boolean =
+  !PluginAdvertiserService.areCommercialEditionSuggestionsEnabled() || isTryUltimateDisabledByUser()
 
 @ApiStatus.Internal
 fun tryUltimate(
@@ -695,6 +703,7 @@ fun tryUltimate(
   currentFile: VirtualFile? = null,
   fallback: (() -> Unit)? = null,
 ) {
+  if (tryUltimateIsDisabled()) return
   val eventSource = fusEventSource ?: FUSEventSource.EDITOR
   OpenAnotherToolHandler.EP_NAME.extensionList
     .firstOrNull() { it.isApplicable(project, suggestedIde, pluginId) }

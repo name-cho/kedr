@@ -1,46 +1,49 @@
-# Contributing to JetBrains IDEs Open Source
+# Contributing to Kedr
 
-Thanks for your interest in contributing to the JetBrains IDEs open-source repository!
+Thanks for helping improve Kedr Studio and Kedr Python.
 
-## What kinds of contributions we welcome
+## Before you start
 
-- **Bug fixes (preferred).** Most contributions we accept are fixes for reproducible issues. Tests should supply those fixes if possible.
-- **Features (by prior agreement only).** If you want to add a feature, please discuss it with us first. We accept features only when they
-  align with our roadmap for the relevant subsystem.
-- **“Patch welcome” issues.** We maintain a list of feature requests and improvements that we warmly welcome from the community:
-  https://youtrack.jetbrains.com/issues?q=%23patch_welcome
+- Search the existing issues and pull requests: https://github.com/name-cho/kedr/issues
+- For a large change, open an issue first so we can agree on the approach.
+- Keep changes focused. Rebranding, packaging, and IDE behavior should not be mixed into one pull request unless they are genuinely related.
+- Security issues go through [SECURITY.md](SECURITY.md), not public issues.
 
-Before you start, make sure you:
+## Building
 
-- Have an existing YouTrack ticket for the issue you plan to work on (or create one if needed): https://youtrack.jetbrains.com/
-- Have read:
-  - [IntelliJ Coding Guidelines](https://plugins.jetbrains.com/docs/intellij/intellij-coding-guidelines.html)
-  - [Contribute Code](https://www.jetbrains.com/opensource/idea/)
-  - Follow the recommended [commit message format](#commit-message-format)
+Kedr targets Windows x64. You need JDK 21 and the Bazel wrapper pinned by the repository. Build through `cmd.exe`:
 
-## Commit message format
+```
+installers.cmd -Dintellij.build.target.os=current
+python\installers.cmd -Dintellij.build.target.os=current
+```
 
-We strongly recommend following this commit message format:
+See [README.md](README.md) and [docs/release.md](docs/release.md) for artifacts, verification, and smoke checks. If the IDE fails to start or a build behaves oddly, check [docs/troubleshooting.md](docs/troubleshooting.md).
 
-   ```
-   <YouTrack ticket ID>( <YouTrack ticket ID>)* (<subsystem>: )? <subject>
-        
-   <detailed description>?
-   ```
+## Tests and checks
 
-E.g.:
+Run the repository checks before sending a pull request:
 
-   ```
-   IDEA-125730 Groovy: declare explicit type 
+```
+node --test tools/kedr/*.test.mjs
+```
 
-   Broken template should revert all its changes and move the caret back to the original position
-   ```
+For platform code, use the upstream test runner described in `.agents/skills/testing/SKILL.md`:
 
-Avoid including links to any discussions in commit messages (Slack, https://platform.jetbrains.com/, etc.). Instead, summarize the
-discussion right in the commit message, or create a YouTrack ticket and summarize it there.
+```
+tests.cmd --module <iml> --test <fully.qualified.TestClass>
+```
 
-## Building the IDE
+Add or update tests when behavior changes. New test code should be Kotlin and use JUnit 5 where the surrounding module already does.
 
-Please read the [README.md](README.md) in order to understand how to build or
-run the IDE on your machine.
+## Code style
 
+- Follow the existing style of the file you are editing.
+- Kotlin and Java use two-space indentation and the upstream IntelliJ formatting conventions.
+- Do not reformat unrelated code.
+- Do not add explanatory comments or KDoc unless they are required by an API contract; prefer clear names and small functions.
+- Keep upstream copyright headers intact. New Kedr files use the Kedr Project header.
+
+## Pull requests
+
+Describe what changed, why, and how you tested it. Link the relevant issue. If a change affects packaging or release behavior, include the output of `tools/kedr/verify-release.mjs` or explain why it could not be run locally.

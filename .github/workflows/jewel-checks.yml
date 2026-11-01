@@ -104,7 +104,7 @@ jobs:
     name: PR formalities
     runs-on: ubuntu-latest
     needs: check_paths
-    if: needs.check_paths.outputs.run_formalities == 'true'
+    if: github.repository == 'JetBrains/intellij-community' && needs.check_paths.outputs.run_formalities == 'true'
     permissions:
       contents: read
       pull-requests: read
@@ -138,6 +138,7 @@ jobs:
 
   annotate_breaking_api_changes:
     name: Annotate breaking API changes with IJP dumps
+    if: github.repository == 'JetBrains/intellij-community'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -181,6 +182,10 @@ jobs:
   check_ij_api_dumps:
     name: Check that the IJP API dumps are up-to-date
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     defaults:
       run:
         working-directory: .
@@ -196,7 +201,7 @@ jobs:
         with:
           repository: JetBrains/android
           path: android
-          ref: master
+          ref: 263.7307
 
       # The API check compiles every community module, which does not fit a hosted runner's stock
       # resources. Same preparation as .github/actions/build_ide, which builds the IDE on ubuntu-latest.
@@ -259,12 +264,30 @@ jobs:
           version: ${{ env.KOTLIN_VERSION }}
 
       - name: Check that the IJP API dumps are up-to-date
-        run: ${{ steps.kotlin.outputs.bin-dir }}/kotlin ./scripts/check-api-dumps.main.kts
-        working-directory: platform/jewel
+        run: |
+          set -o pipefail
+          ./bazel.cmd test --cache_test_results=no //platform/testFramework/monorepo:monorepo-tests_test \
+            --test_filter=com.intellij.platform.testFramework.monorepo.api.ApiCheckTest --test_output=errors 2>&1 | tee /tmp/kedr-api-check.log
+
+      - name: Report API check failure
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            echo '## API check failure'
+            echo '```'
+            tail -180 /tmp/kedr-api-check.log
+            echo '```'
+          } > /tmp/kedr-api-failure.md
+          gh pr comment "$PR_NUMBER" --body-file /tmp/kedr-api-failure.md
 
   check_bazel_build:
     name: Check that the Bazel build is up-to-date
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: .
@@ -278,7 +301,7 @@ jobs:
         with:
           repository: JetBrains/android
           path: android
-          ref: master
+          ref: 263.7307
 
       - name: Set up JBR 21
         uses: actions/setup-java@v5.6.0
@@ -286,12 +309,23 @@ jobs:
           java-version: 21
           distribution: jetbrains
           cache: gradle
+          token: ${{ github.token }}
 
       - name: Grant execute permission to the Bazel build generator script
         run: chmod +x build/jpsModelToBazelCommunityOnly.cmd
 
       - name: Run the Bazel build generator script
         run: ./build/jpsModelToBazelCommunityOnly.cmd
+
+      - name: Report generated model update
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'arena/aaff0dd7-kedr'
+        run: |
+          {
+            echo '## Generated model update'
+            echo '```diff'
+            git diff -- lib/BUILD.bazel build/BUILD.bazel plugins/go/BUILD.bazel plugins/textmate/tests/BUILD.bazel python/BUILD.bazel
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check that the Bazel build is up-to-date (except android submodule)
         run: |
@@ -325,6 +359,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
         name: Check out repository
+
+      # Jewel depends on Compose, and Compose depends on //plugins/skiko/plugin. That package loads
+      # @jps_dynamic_deps_community, which reads every .iml in .idea/modules.xml, including the android ones.
+      - uses: actions/checkout@v7.0.1
+        name: Checkout JetBrains/android submodule
+        with:
+          repository: JetBrains/android
+          path: android
+          ref: 263.7307
 
       - name: Install Xvfb
         # libxrandr2 and libxinerama1 are dlopened, so nothing reports them missing.
@@ -372,6 +415,15 @@ jobs:
 
       - uses: actions/checkout@v7.0.1
         name: Check out repository
+
+      # Jewel depends on Compose, and Compose depends on //plugins/skiko/plugin. That package loads
+      # @jps_dynamic_deps_community, which reads every .iml in .idea/modules.xml, including the android ones.
+      - uses: actions/checkout@v7.0.1
+        name: Checkout JetBrains/android submodule
+        with:
+          repository: JetBrains/android
+          path: android
+          ref: 263.7307
 
       - name: Run the Spectre headful UI tests
         # Not redundant: JDialogRenderer uses RenderSettings.SwingGraphics on Windows.
