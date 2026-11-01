@@ -263,21 +263,15 @@ jobs:
         run: ${{ steps.kotlin.outputs.bin-dir }}/kotlin ./scripts/check-api-dumps.main.kts
         working-directory: platform/jewel
 
-      - name: Collect API check logs
+      - name: Report API check failure
         if: failure()
         run: |
-          mkdir -p api-check-logs
-          find bazel-out -path '*monorepo-tests_test/test.log' -exec cp -L {} api-check-logs/ \; || true
-          find bazel-out -path '*monorepo-tests_test/test.xml' -exec cp -L {} api-check-logs/ \; || true
-
-      - name: Upload API check logs
-        if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: kedr-api-check-logs
-          path: api-check-logs/
-          if-no-files-found: warn
-          retention-days: 7
+          {
+            echo '## API check failure'
+            echo '```'
+            find bazel-out -path '*monorepo-tests_test/test.log' -exec tail -150 {} \; || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   check_bazel_build:
     name: Check that the Bazel build is up-to-date
@@ -313,21 +307,15 @@ jobs:
       - name: Run the Bazel build generator script
         run: ./build/jpsModelToBazelCommunityOnly.cmd
 
-      - name: Save generated model update
+      - name: Report generated model update
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'arena/aaff0dd7-kedr'
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          git diff --stat
-          if ! git diff --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -u -- lib/BUILD.bazel build/BUILD.bazel plugins/go/BUILD.bazel plugins/textmate/tests/BUILD.bazel python/BUILD.bazel
-            git commit -m "Regenerate Bazel model for the unified product tree"
-            sha=$(git rev-parse HEAD)
-            gh api "repos/$GITHUB_REPOSITORY/git/refs/heads/arena/aaff0dd7-kedr" -X PATCH -f sha="$sha" -F force=false
-          fi
+          {
+            echo '## Generated model update'
+            echo '```diff'
+            git diff -- lib/BUILD.bazel build/BUILD.bazel plugins/go/BUILD.bazel plugins/textmate/tests/BUILD.bazel python/BUILD.bazel
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check that the Bazel build is up-to-date (except android submodule)
         run: |
