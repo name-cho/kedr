@@ -91,7 +91,11 @@ jobs:
           foreach ($test in $tests) {
             cmd /c "bazel.cmd test $($test.Target) --test_filter=$($test.Filter) --test_output=errors > $($test.Log) 2>&1"
             if ($LASTEXITCODE -ne 0) {
-              Get-Content $test.Log -Tail 200
+              $tail = Get-Content $test.Log -Tail 180
+              $tail
+              "## Test failure: $($test.Filter)`n``````" | Add-Content $env:GITHUB_STEP_SUMMARY
+              $tail | Add-Content $env:GITHUB_STEP_SUMMARY
+              '```' | Add-Content $env:GITHUB_STEP_SUMMARY
               throw "test failed: $($test.Filter)"
             }
           }

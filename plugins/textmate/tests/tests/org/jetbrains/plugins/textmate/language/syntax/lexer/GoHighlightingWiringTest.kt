@@ -16,10 +16,9 @@ import kotlin.test.assertIs
 internal class GoHighlightingWiringTest {
   @Test
   fun goFilesUseTextMateHighlightingWithoutGopls() {
-    assertEquals(GoFileType, FileTypeManager.getInstance().getFileTypeByFileName("main.go"))
-    val language = Language.findLanguageByID("Go")
-    assertIs<Language>(language)
+    assertEquals(GoFileType.INSTANCE, FileTypeManager.getInstance().getFileTypeByFileName("main.go"))
+    val language = Language.findLanguageByID("Go") ?: error("Go language is not registered")
     assertIs<TextMateSyntaxHighlighterFactory>(SyntaxHighlighterFactory.getLanguageFactory().forLanguage(language))
-    assertIs<TextMateEditorHighlighterProvider>(FileTypeEditorHighlighterProviders.getInstance().forFileType(GoFileType))
+    assertIs<TextMateEditorHighlighterProvider>(FileTypeEditorHighlighterProviders.getInstance().forFileType(GoFileType.INSTANCE))
   }
 }
