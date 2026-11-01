@@ -263,6 +263,15 @@ jobs:
         run: ${{ steps.kotlin.outputs.bin-dir }}/kotlin ./scripts/check-api-dumps.main.kts
         working-directory: platform/jewel
 
+      - name: Upload API check logs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: kedr-api-check-logs
+          path: bazel-testlogs/platform/testFramework/monorepo/
+          if-no-files-found: warn
+          retention-days: 7
+
   check_bazel_build:
     name: Check that the Bazel build is up-to-date
     runs-on: ubuntu-latest
@@ -289,6 +298,7 @@ jobs:
           java-version: 21
           distribution: jetbrains
           cache: gradle
+          token: ${{ github.token }}
 
       - name: Grant execute permission to the Bazel build generator script
         run: chmod +x build/jpsModelToBazelCommunityOnly.cmd
