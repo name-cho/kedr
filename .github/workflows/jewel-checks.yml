@@ -182,6 +182,9 @@ jobs:
   check_ij_api_dumps:
     name: Check that the IJP API dumps are up-to-date
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     defaults:
       run:
         working-directory: .
@@ -264,14 +267,18 @@ jobs:
         working-directory: platform/jewel
 
       - name: Report API check failure
-        if: failure()
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           {
             echo '## API check failure'
             echo '```'
             find bazel-out -path '*monorepo-tests_test/test.log' -exec tail -150 {} \; || true
             echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          } > /tmp/kedr-api-failure.md
+          gh pr comment "$PR_NUMBER" --body-file /tmp/kedr-api-failure.md
 
   check_bazel_build:
     name: Check that the Bazel build is up-to-date
