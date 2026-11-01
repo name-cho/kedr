@@ -5,6 +5,7 @@ Target platform: **Windows x64**. macOS and Linux are out of scope until someone
 ## M0 — Bootstrap
 
 - [x] Clone upstream at `pycharm/262.10968.92` (2026.2.3)
+- [x] Rebase the product line onto IntelliJ Platform 2026.3 RC (`263.7307.112`)
 - [x] Toolchain: Bazel (JetBrains fork 9.1.0-jb), JBR 25 without JCEF
 - [x] Fix local Bazel startup (broken IPv6 loopback on the build machine)
 - [x] Baseline build of the unmodified IDEA Community distribution (`out/idea-ce/artifacts`)
@@ -14,12 +15,12 @@ Target platform: **Windows x64**. macOS and Linux are out of scope until someone
 
 - [x] Product descriptors: `IdeaApplicationInfo.xml`, `PyCharmCoreApplicationInfo.xml`
 - [x] Product properties: `IdeaCommunityProperties.kt`, `PyCharmCommunityProperties.kt`
-- [x] Settings/system dirs: `KedrStudio2026.2`, `KedrPython2026.2` (no shared state with real JetBrains IDEs)
+- [x] Settings/system dirs: `KedrStudio2026.3`, `KedrPython2026.3` (no shared state with real JetBrains IDEs)
 - [x] Icons, splash, installer bitmaps, window title
 - [x] About dialog: own copyright record plus a "Based on the IntelliJ Platform by JetBrains" line
   (verified at runtime in both products)
-- [x] Portable Windows ZIP for both products: `kedr-studio-262.10968.SNAPSHOT.win.zip` (~933 MB) and
-  `kedr-python-262.10968.SNAPSHOT.win.zip` (~587 MB); both launch from an extracted folder
+- [x] Portable Windows ZIP for both products; the 2026.2 builds launched from extracted folders
+- [ ] Verify the 2026.3 RC ZIPs and installers in Windows CI
 - [x] Keep `bin/idea64.exe` / `bin/pycharm64.exe` and upstream product codes `IC`/`PC` so Marketplace plugin compatibility keeps working
 
 ## M2 — Remove subscription and upsell UI
@@ -48,7 +49,7 @@ Upstream already ships, inside the community Python plugin: `ruff`, `uv`, `pyrig
 core, the type engine, Jupyter (via the notebook modules), pytest/unittest and the debugger. Most of the
 "strengthen PyCharm" wish list is therefore already present; the gaps are:
 
-- [ ] `mypy` integration (upstream dropped it in favour of ty/pyright/pyrefly)
+- [x] `mypy` integration is bundled through the PythonCore plugin modules
 - [ ] Decide whether the Studio build enables the Python "minor IDE" modules too
 
 ## M4 — Go in Kedr Studio

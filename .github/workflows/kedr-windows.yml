@@ -46,6 +46,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           pattern: kedr-*-win-x64
@@ -69,9 +73,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+          notes="docs/releases/$GITHUB_REF_NAME.md"
+          test -s "$notes"
+          flags=(--draft --verify-tag)
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            flags+=(--prerelease --latest=false)
+          fi
           gh release create "$GITHUB_REF_NAME" release/* \
             --repo "$GITHUB_REPOSITORY" \
-            --draft \
-            --generate-notes \
-            --verify-tag \
-            --title "Kedr $GITHUB_REF_NAME"
+            "${flags[@]}" \
+            --notes-file "$notes" \
+            --title "Kedr Studio + Kedr Python $GITHUB_REF_NAME"

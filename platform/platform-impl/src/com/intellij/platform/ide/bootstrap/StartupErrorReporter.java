@@ -269,7 +269,7 @@ public final class StartupErrorReporter {
 
     try {
       var savedReportPath = worker.get();
-      var message = message("bootstrap.error.message.submitted", savedReportPath);
+      var message = prepareMessage(message("bootstrap.error.message.submitted", savedReportPath));
       JOptionPane.showMessageDialog(JOptionPane.getRootFrame(), message, message("bootstrap.error.title.submitted"), JOptionPane.INFORMATION_MESSAGE);
     }
     catch (Throwable t) {

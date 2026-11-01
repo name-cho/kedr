@@ -1,4 +1,4 @@
-# Kedr
+﻿# Kedr
 
 Free, fully open-source desktop IDEs for Windows, built from the IntelliJ Platform
 source code:
@@ -18,8 +18,8 @@ without an account. Third-party Marketplace plugins keep their own licensing.
 
 | Product | Based on | Executable | Build number prefix |
 | --- | --- | --- | --- |
-| Kedr Studio | IntelliJ IDEA Community 2026.2.3 | `bin\idea64.exe` | `IC-` |
-| Kedr Python | PyCharm Community 2026.2.3 | `bin\pycharm64.exe` | `PC-` |
+| Kedr Studio | IntelliJ IDEA Community 2026.3 | `bin\idea64.exe` | `IC-` |
+| Kedr Python | PyCharm Community 2026.3 | `bin\pycharm64.exe` | `PC-` |
 
 Build numbers and product codes (`IC`, `PC`) are intentionally unchanged, so
 Marketplace plugins that declare compatibility with these builds keep working.
@@ -122,11 +122,11 @@ See [docs/release.md](docs/release.md) for the release process and
 
 ## License
 
-Kedr source is distributed under the Apache License 2.0 — see [LICENSE.txt](LICENSE.txt)
+Kedr source is distributed under the Apache License 2.0 вЂ” see [LICENSE.txt](LICENSE.txt)
 and [NOTICE.txt](NOTICE.txt):
 
-- [LICENSE.txt](LICENSE.txt) — Apache License 2.0, the license of this fork.
-- [LICENSE-JETBRAINS-BUILD-TERMS.txt](LICENSE-JETBRAINS-BUILD-TERMS.txt) — the
+- [LICENSE.txt](LICENSE.txt) вЂ” Apache License 2.0, the license of this fork.
+- [LICENSE-JETBRAINS-BUILD-TERMS.txt](LICENSE-JETBRAINS-BUILD-TERMS.txt) вЂ” the
   terms that ship with the upstream tree, kept unchanged for provenance.
 - Third-party components keep their own licenses; they are collected under
   `license/`, and the generated report is `license/third-party-libraries.html`

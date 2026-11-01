@@ -94,7 +94,7 @@ function productInfo(product, overrides = {}) {
       },
     ],
     bundledPlugins: studio
-      ? ['com.intellij.java', 'PythonCore', 'su.rus.language-pack']
+      ? ['com.intellij.java', 'PythonCore', 'com.kedr.go', 'org.jetbrains.plugins.textmate', 'su.rus.language-pack']
       : ['PythonCore', 'com.jetbrains.pycharm.community.customization', 'su.rus.language-pack'],
     layout: [],
     ...overrides,
@@ -123,6 +123,8 @@ function writeArtifacts(directory, product, { info = productInfo(product), missi
   const zip = makeZip({
     'product-info.json': JSON.stringify(info),
     'build.txt': `${info.productCode}-${info.buildNumber}`,
+    'plugins/textmate-plugin/lib/bundles/go/package.json': '{"contributes":{"languages":[{"id":"go","extensions":[".go"]}]}}',
+    'plugins/textmate-plugin/lib/bundles/go/syntaxes/go.tmLanguage.json': '{"scopeName":"source.go"}',
     [launcher]: fakeExe(),
     'jbr/bin/java.exe': fakeExe(),
     [vmOptions]: '-Xmx2048m\n',
@@ -221,6 +223,15 @@ test('missing required plugin fails verification', () => {
       info: productInfo('studio', { bundledPlugins: ['com.intellij.java', 'su.rus.language-pack'] }),
     });
     assert.throws(() => verifyRelease({ product: 'studio', artifactsDir: directory }), /required plugin is missing: PythonCore/);
+  });
+});
+
+test('Studio requires the Go plugin and TextMate grammar', () => {
+  withTemp((directory) => {
+    writeArtifacts(directory, 'studio', {
+      info: productInfo('studio', { bundledPlugins: ['com.intellij.java', 'PythonCore', 'org.jetbrains.plugins.textmate', 'su.rus.language-pack'] }),
+    });
+    assert.throws(() => verifyRelease({ product: 'studio', artifactsDir: directory }), /required plugin is missing: com.kedr.go/);
   });
 });
 

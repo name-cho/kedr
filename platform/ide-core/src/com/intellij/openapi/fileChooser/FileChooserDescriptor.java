@@ -1,4 +1,4 @@
-// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.openapi.fileChooser;
 
 import com.intellij.ide.IdeCoreBundle;
@@ -28,6 +28,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.Icon;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -45,7 +46,7 @@ import java.util.stream.Stream;
  * Please consider using common variants provided by {@link FileChooserDescriptorFactory}.
  */
 @SuppressWarnings("UnusedReturnValue")
-public class FileChooserDescriptor implements Cloneable {
+public class FileChooserDescriptor {
   @ApiStatus.Internal
   public static final DataKey<String> FILTER_TYPE = DataKey.create("file.chooser.filter.kind");
 
@@ -59,6 +60,7 @@ public class FileChooserDescriptor implements Cloneable {
   private @NlsContexts.Label String myDescription;
   private boolean myHideIgnored = true;
   private final List<VirtualFile> myRoots = new ArrayList<>();
+  private final List<Path> myPathRoots = new ArrayList<>();
   private boolean myShowFileSystemRoots = true;
   private boolean myTreeRootVisible = false;
   private boolean myShowHiddenFiles = false;
@@ -67,6 +69,7 @@ public class FileChooserDescriptor implements Cloneable {
   private @Nullable Predicate<? super VirtualFile> myFileFilter = null;
   private boolean myForcedToUseIdeaFileChooser = false;
   private boolean myEnvironmentRestricted = false;
+  private boolean myLocalFileSystem = false;
 
   private final Map<String, Object> myUserData = new HashMap<>();
 
@@ -109,6 +112,7 @@ public class FileChooserDescriptor implements Cloneable {
     myDescription = d.getDescription();
     myHideIgnored = d.isHideIgnored();
     myRoots.addAll(d.getRoots());
+    myPathRoots.addAll(d.getPathRoots());
     myShowFileSystemRoots = d.isShowFileSystemRoots();
     myTreeRootVisible = d.isTreeRootVisible();
     myShowHiddenFiles = d.isShowHiddenFiles();
@@ -117,6 +121,7 @@ public class FileChooserDescriptor implements Cloneable {
     myFileFilter = d.myFileFilter;
     myForcedToUseIdeaFileChooser = false;
     myEnvironmentRestricted = d.myEnvironmentRestricted;
+    myLocalFileSystem = d.myLocalFileSystem;
     myUserData.putAll(d.myUserData);
   }
 
@@ -198,6 +203,38 @@ public class FileChooserDescriptor implements Cloneable {
     return this;
   }
 
+  /**
+   * Returns the roots that {@link #withPathRoots} set.
+   */
+  @ApiStatus.Experimental
+  public @NotNull List<@NotNull Path> getPathRoots() {
+    return Collections.unmodifiableList(myPathRoots);
+  }
+
+  /**
+   * @see #withPathRoots(List)
+   */
+  @ApiStatus.Experimental
+  public FileChooserDescriptor withPathRoots(Path @NotNull ... roots) {
+    return withPathRoots(Arrays.asList(roots));
+  }
+
+  /**
+   * Sets the roots as NIO paths.
+   * <p>
+   * A path root does not need a {@link VirtualFile}. The caller can pass a root
+   * that the VFS has not loaded yet, for example a path in a remote environment.
+   * The IDE file chooser combines these roots with {@link #getRoots()}.
+   * The native choosers ignore them.
+   */
+  @ApiStatus.Experimental
+  public FileChooserDescriptor withPathRoots(@NotNull List<? extends Path> roots) {
+    if (roots.contains(null)) throw new IllegalArgumentException("'null' in roots: " + roots);
+    myPathRoots.clear();
+    myPathRoots.addAll(roots);
+    return this;
+  }
+
   public boolean isShowFileSystemRoots() {
     return myShowFileSystemRoots;
   }
@@ -251,7 +288,7 @@ public class FileChooserDescriptor implements Cloneable {
   /**
    * @see #withExtensionFilter(String, String...)
    */
-  public FileChooserDescriptor withExtensionFilter(@NlsContexts.Label @NotNull String label, @NotNull FileType @NotNull ... types) {
+  public FileChooserDescriptor withExtensionFilter(@NlsContexts.Label @NotNull String label, @SuppressWarnings("SSBasedInspection") @NotNull FileType @NotNull ... types) {
     if (types.length == 0) throw new IllegalArgumentException("The list must not be empty");
     var extensions = Stream.of(types)
       .flatMap(type -> FileTypeManager.getInstance().getAssociations(type).stream())
@@ -275,7 +312,7 @@ public class FileChooserDescriptor implements Cloneable {
    * The {@code label} parameter is used in a combobox to switch between showing only matching or all files
    * in dialogs supporting this feature.
    */
-  public FileChooserDescriptor withExtensionFilter(@NlsContexts.Label @NotNull String label, @NotNull String @NotNull ... extensions) {
+  public FileChooserDescriptor withExtensionFilter(@NlsContexts.Label @NotNull String label, @SuppressWarnings("SSBasedInspection") @NotNull String @NotNull ... extensions) {
     if (extensions.length == 0) throw new IllegalArgumentException("The list must not be empty");
     myExtensionFilter = new Pair<>(label, List.of(extensions));
     return this;
@@ -355,10 +392,11 @@ public class FileChooserDescriptor implements Cloneable {
   }
 
   protected boolean matchesFilters(VirtualFile file) {
-    return
+    return (
       (myExtensionFilter == null || ContainerUtil.exists(myExtensionFilter.second, ext -> Strings.endsWithIgnoreCase(file.getName(), '.' + ext))) &&
       (myFileTypeFilter == null || ContainerUtil.exists(myFileTypeFilter, type -> FileTypeRegistry.getInstance().isFileOfType(file, type))) &&
-      (myFileFilter == null || myFileFilter.test(file));
+      (myFileFilter == null || myFileFilter.test(file))
+    );
   }
 
   private static boolean isArchive(VirtualFile file) {
@@ -372,7 +410,7 @@ public class FileChooserDescriptor implements Cloneable {
    * @param files selected files to be checked
    * @throws Exception if selected files cannot be accepted, the exception message will be shown in the UI.
    */
-  public void validateSelectedFiles(@NotNull VirtualFile @NotNull [] files) throws Exception {
+  public void validateSelectedFiles(@SuppressWarnings("SSBasedInspection") @NotNull VirtualFile @NotNull [] files) throws Exception {
     if (myBaseDescriptor != null) {
       myBaseDescriptor.validateSelectedFiles(files);
     }
@@ -426,6 +464,41 @@ public class FileChooserDescriptor implements Cloneable {
     return this;
   }
 
+  /**
+   * When {@code true}, the file chooser also exposes the local file system roots in addition
+   * to whatever environment the descriptor is otherwise restricted to. Effective only when combined
+   * with {@link #withEnvironmentRestricted(boolean)}; without environment restriction all contributors
+   * (including local) are shown anyway, and this flag has no effect. Works only with {@code UniversalFileChooser}.
+   *
+   * @see #withLocalFileSystem()
+   * @see #withEnvironmentRestricted(boolean)
+   */
+  public boolean isLocalFileSystem() {
+    return myLocalFileSystem;
+  }
+
+  /**
+   * Requests that the local file system is shown by the file chooser in addition to the environment
+   * selected via {@link #withEnvironmentRestricted(boolean)}. When {@code withEnvironmentRestricted(true)}
+   * is used alone, only the current project's context environment is shown. When {@code withLocalFileSystem()}
+   * is used together with it, the local file system roots are shown too, <em>in addition</em> to the project
+   * context environment. Works only with {@code UniversalFileChooser}.
+   *
+   * @see #isLocalFileSystem()
+   * @see #withEnvironmentRestricted(boolean)
+   */
+  public FileChooserDescriptor withLocalFileSystem() {
+    return withLocalFileSystem(true);
+  }
+
+  /**
+   * @see #withLocalFileSystem()
+   */
+  public FileChooserDescriptor withLocalFileSystem(boolean localFileSystem) {
+    myLocalFileSystem = localFileSystem;
+    return this;
+  }
+
   @ApiStatus.Internal
   public final @Nullable VirtualFile getFileToSelect(@NotNull VirtualFile file) {
     if (isFileSelectable(file)) {
@@ -443,18 +516,6 @@ public class FileChooserDescriptor implements Cloneable {
   @ApiStatus.Internal
   public @Nullable Pair<@Nls String, List<@NlsSafe String>> getExtensionFilter() {
     return myExtensionFilter;
-  }
-
-  /** @deprecated use the copy constructor ({@link #FileChooserDescriptor(FileChooserDescriptor)}) instead */
-  @Deprecated(forRemoval = true)
-  @Override
-  public final Object clone() {
-    try {
-      return super.clone();
-    }
-    catch (CloneNotSupportedException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   public @Nullable Object getUserData(@NotNull String dataId) {

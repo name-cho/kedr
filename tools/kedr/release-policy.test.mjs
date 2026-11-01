@@ -31,8 +31,10 @@ test('product descriptors do not depend on promo modules', () => {
 });
 
 test('default error reporter saves locally', () => {
-  const extensions = read('platform/platform-resources/src/META-INF/PlatformExtensions.xml');
+  const extensions = read('platform/platform-impl/resources/intellij.platform.ide.impl.xml');
   assert.match(extensions, /<errorHandler implementation="com\.intellij\.diagnostic\.KedrErrorReportSubmitter"\/>/);
+  assert.ok(!extensions.includes('ReporterIdForEAAutoReporters'));
+  assert.ok(!extensions.includes('ReporterIdLoggerActivity'));
   const startup = read('platform/platform-impl/src/com/intellij/platform/ide/bootstrap/StartupErrorReporter.java');
   assert.ok(!startup.includes('ITNProxy'));
   assert.ok(!startup.includes('LogUploader'));
@@ -101,7 +103,7 @@ test('release workflows are pinned and publish both packages', () => {
     }
   }
   assert.ok(!build.includes('windows_exe_installer'));
-  assert.ok(build.includes('d65bac16fd3a2df1c49f928df74c9e67c6282359'));
+  assert.ok(build.includes('935e4531a777fdbd2084c43fa575f27dbb22f728'));
   assert.ok(build.includes('verify-release.mjs'));
   assert.ok(build.includes('smoke-release.ps1'));
   assert.ok(build.includes('out/kedr-${{ inputs.product }}/release/*'));
@@ -110,6 +112,30 @@ test('release workflows are pinned and publish both packages', () => {
   assert.ok(release.includes('--draft'));
   assert.ok(release.includes('SHA256SUMS'));
   assert.ok(checks.includes('node --test tools/kedr/*.test.mjs'));
+});
+
+test('Studio bundles Go highlighting independently of gopls', () => {
+  const descriptor = read('plugins/go/resources/META-INF/plugin.xml');
+  assert.ok(descriptor.includes('<id>com.kedr.go</id>'));
+  assert.ok(descriptor.includes('fileType name="Go" extensions="go" language="Go"'));
+  assert.match(descriptor, /syntaxHighlighterFactory language="Go"[\s\S]*?TextMateSyntaxHighlighterFactory/);
+  assert.match(descriptor, /editorHighlighterProvider filetype="Go"[\s\S]*?TextMateEditorHighlighterProvider/);
+  assert.ok(descriptor.includes('<module name="intellij.textmate"/>'));
+  const bundle = JSON.parse(read('plugins/textmate/lib/bundles/go/package.json'));
+  assert.equal(bundle.contributes.grammars[0].scopeName, 'source.go');
+  assert.ok(bundle.contributes.languages[0].extensions.includes('.go'));
+  assert.equal(JSON.parse(read('plugins/textmate/lib/bundles/go/syntaxes/go.tmLanguage.json')).scopeName, 'source.go');
+  for (const path of ['build/src/org/jetbrains/intellij/build/IdeaCommunityProperties.kt', 'python/build/src/org/jetbrains/intellij/build/pycharm/PyCharmCommunityProperties.kt']) {
+    assert.ok(read(path).includes('"intellij.go"'));
+  }
+  assert.match(read('python/build/plugin-list.txt'), /^intellij\.textmate\.plugin$/m);
+  assert.match(read('platform/build-scripts/src/org/jetbrains/intellij/build/BaseIdeaProperties.kt'), /"intellij\.textmate\.plugin"/);
+  assert.match(read('build/src/org/jetbrains/intellij/build/IdeaCommunityProperties.kt'), /fileAssociations = listOf\([^\n]*"go"[^\n]*"mod"/);
+  assert.match(read('community-resources/resources/idea/IdeaApplicationInfo.xml'), /motto="[^"]*Go/);
+  assert.ok(read('tools/kedr/verify-release.mjs').includes('verifyGoHighlighting(zip, prefix)'));
+  assert.ok(read('tools/kedr/smoke-release.ps1').includes("'com.kedr.go'"));
+  assert.ok(read('plugins/textmate/tests/tests/org/jetbrains/plugins/textmate/language/syntax/lexer/GoHighlightingWiringTest.kt').includes('TextMateEditorHighlighterProvider'));
+  assert.ok(read('.github/workflows/kedr-windows-build.yml').includes('//plugins/textmate/tests:tests_test'));
 });
 
 test('project contacts point to Kedr', () => {

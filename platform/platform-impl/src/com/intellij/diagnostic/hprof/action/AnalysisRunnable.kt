@@ -21,7 +21,9 @@ import com.intellij.diagnostic.hprof.analysis.HProfAnalysis
 import com.intellij.diagnostic.hprof.analysis.analyzeGraph
 import com.intellij.diagnostic.hprof.util.HeapDumpAnalysisNotificationGroup
 import com.intellij.diagnostic.hprof.util.HeapReportUtils.sectionHeader
+import com.intellij.diagnostic.hprof.util.HeapReportUtils.toShortStringAsSize
 import com.intellij.diagnostic.report.HeapReportProperties
+import com.intellij.featureStatistics.fusCollectors.LifecycleUsageTriggerCollector
 import com.intellij.ide.BrowserUtil
 import com.intellij.ide.actions.ShowLogAction
 import com.intellij.notification.Notification
@@ -103,10 +105,13 @@ internal class AnalysisRunnable(
         deleteHprofFileAsync()
       }
 
+      HeapDumpAnalysisSupport.getInstance().analysisComplete(heapProperties)
+
       val notification = HeapDumpAnalysisNotificationGroup.GROUP.createNotification(
         title = DiagnosticBundle.message("heap.dump.analysis.notification.title"),
         content = DiagnosticBundle.message("heap.dump.analysis.notification.ready.content"),
         type = NotificationType.INFORMATION)
+      notification.setDisplayId("memory.analysis.complete")
       notification.isImportant = true
       notification.setSuggestionType(true)
       notification.addAction(ReviewReportAction(reportText, heapProperties))
@@ -124,14 +129,14 @@ internal class AnalysisRunnable(
         return
       }
 
+      LifecycleUsageTriggerCollector.onMemoryReportReview()
+
       reportShown = true
       UIUtil.invokeLaterIfNeeded {
         notification.expire()
 
         val reportDialog = ShowReportDialog(reportText, heapProperties)
         val userAgreedToSendReport = reportDialog.showAndGet()
-
-        HeapDumpAnalysisSupport.getInstance().analysisComplete(heapProperties)
 
         if (userAgreedToSendReport) {
           HeapDumpAnalysisSupport.getInstance().saveReport(reportText, heapProperties, parentComponent)
@@ -161,12 +166,14 @@ internal fun getHeapDumpReportText(reportText: String, heapProperties: HeapRepor
 }
 
 internal class ShowReportDialog(reportText: String, heapProperties: HeapReportProperties) : DialogWrapper(false) {
-  private val textArea: JTextArea = JTextArea(30, 130)
+  private val textArea: JTextArea = JTextArea(25, 130)
+  private val suspectReport: String?
 
   init {
     textArea.text = getHeapDumpReportText(reportText, heapProperties)
     textArea.isEditable = false
     textArea.caretPosition = 0
+    suspectReport = createSuspectReport(reportText, heapProperties)
     init()
     title = DiagnosticBundle.message("heap.dump.analysis.report.dialog.title")
     isModal = true
@@ -175,7 +182,7 @@ internal class ShowReportDialog(reportText: String, heapProperties: HeapReportPr
   override fun createCenterPanel(): JComponent {
     val pane = JPanel(BorderLayout(0, 5))
     val productName = ApplicationNamesInfo.getInstance().fullProductName
-    val header = JLabel(DiagnosticBundle.message("heap.dump.analysis.report.dialog.header", productName))
+    val header = JLabel(DiagnosticBundle.message("heap.dump.analysis.report.dialog.header", productName, suspectReport ?: ""))
 
     pane.add(header, BorderLayout.PAGE_START)
     pane.add(JBScrollPane(textArea), BorderLayout.CENTER)
@@ -203,6 +210,27 @@ internal class ShowReportDialog(reportText: String, heapProperties: HeapReportPr
     super.createDefaultActions()
     okAction.putValue(Action.NAME, DiagnosticBundle.message("heap.dump.analysis.report.dialog.action.send"))
     cancelAction.putValue(Action.NAME, DiagnosticBundle.message("heap.dump.analysis.report.dialog.action.dont.send"))
+  }
+
+  private fun createSuspectReport(reportText: String, heapProperties: HeapReportProperties): String? {
+    if (!LargestObjectWithOwner.isOomReport(reportText)) return null
+
+    val suspect = LargestObjectWithOwner.find(reportText)
+    if (suspect == null || !suspect.isWorthReportingToUser()) return null
+
+    val heapSize = heapProperties.heapStats.lines().firstOrNull()?.substringAfter("Maximum heap size:", "")?.trim()
+    return buildString {
+      append("<br>")
+      append(DiagnosticBundle.message("heap.dump.analysis.report.dialog.header.dominating.object", suspect.largestObject.className))
+      append(DiagnosticBundle.message("heap.dump.analysis.report.dialog.header.deep.size", toShortStringAsSize(suspect.largestObject.sizeInBytes)))
+      if (heapSize?.isNotBlank() ?: false) {
+        append(DiagnosticBundle.message("heap.dump.analysis.report.dialog.header.of.max.heap", heapSize))
+      }
+      if (suspect.descriptor != null) {
+        append(DiagnosticBundle.message("heap.dump.analysis.report.dialog.header.responsible.plugin", suspect.descriptor.name,suspect.descriptor.pluginId.idString))
+      }
+      append("<br><br>")
+    }
   }
 }
 

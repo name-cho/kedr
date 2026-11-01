@@ -28,6 +28,12 @@ from _pydevd_bundle.pydevd_asyncio_provider import get_eval_async_expression_in_
 from array import array
 from collections import deque
 
+_LAZY_LOADED_COLLECTION_TYPES = (list, tuple, dict, set, frozenset)
+try:
+    _LAZY_LOADED_COLLECTION_TYPES += (frozendict,)  # @UndefinedVariable
+except NameError:
+    pass  # frozendict is a builtin since Python 3.15
+
 
 def _normpath(filename):
     return pydevd_file_utils.get_abs_path_real_path_and_base_from_file(filename)[0]
@@ -622,7 +628,7 @@ def should_evaluate_full_value(val, group_type=GET_FRAME_NORMAL_GROUP):
     if group_type == GET_FRAME_RETURN_GROUP:
         return None
     return LOAD_VALUES_POLICY == ValuesPolicy.SYNC \
-           or ((is_builtin(type(val)) or is_numpy(type(val))) and not isinstance(val, (list, tuple, dict, set, frozenset))) \
+           or ((is_builtin(type(val)) or is_numpy(type(val))) and not isinstance(val, _LAZY_LOADED_COLLECTION_TYPES)) \
            or (is_in_unittests_debugging_mode() and isinstance(val, Exception))
 
 
@@ -689,6 +695,12 @@ def eval_expression(expression, globals, locals):
 def kill_thread(thread):
     if not thread.is_alive():
         return
+
+    # Marked before the exception is raised, so that the thread knows the SystemExit below is the one the
+    # debugger asked for and keeps its traceback off stderr.
+    do_kill = getattr(thread, 'do_kill_pydev_thread', None)
+    if do_kill is not None:
+        do_kill()
 
     thread_id = thread.ident
 

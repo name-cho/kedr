@@ -11,23 +11,25 @@ Every artifact has `.sha256` and `.sha512` sidecars. The release also includes a
 
 ## Cutting a release
 
-1. Make sure `main` is green and the version/build number in the product descriptors is correct.
-2. Create and push a tag:
+1. Merge both product changes into `main` through a pull request. Do not merge the old 2026.2 tree over the 2026.3 tree.
+2. Make sure `main` is green and the version/build number in the product descriptors is correct.
+3. Add Russian release notes at `docs/releases/<tag>.md`. Describe both products, the platform version, known limits and checksum verification.
+4. Create and push a tag from `main`:
 
    ```
-   git tag v0.1.0
-   git push origin v0.1.0
+   git tag v1.2.0
+   git push origin v1.2.0
    ```
 
-3. `.github/workflows/kedr-windows.yml` builds both products through the reusable `kedr-windows-build.yml` workflow.
-4. Each product build:
+5. `.github/workflows/kedr-windows.yml` builds both x64 products through the reusable `kedr-windows-build.yml` workflow.
+6. Each product build:
    - checks out the pinned Android module commit;
    - builds the ZIP and NSIS installer;
-   - runs `tools/kedr/verify-release.mjs` to validate checksums, product identity, launch files, required plugins, and forbidden promo modules;
+   - runs `tools/kedr/verify-release.mjs` to validate checksums, product identity, launch files, required plugins, the Go grammar in Studio, and forbidden promo modules;
    - runs `tools/kedr/smoke-release.ps1` to extract the ZIP, list bundled plugins, format a sample file, install silently, list plugins from the installed copy, and uninstall;
    - stages only release assets.
-5. The release job verifies all sidecars, writes `SHA256SUMS`, and creates a **draft** GitHub release.
-6. Review the draft, edit the notes, and publish it manually.
+7. The release job verifies all sidecars, writes `SHA256SUMS`, reads `docs/releases/<tag>.md`, and creates a **draft** GitHub release.
+8. Review the draft and its Windows build logs, then publish it manually. Tags with a suffix such as `-rc.1` are marked as pre-releases.
 
 Manual dispatch can build one product or both, but it does not create a release.
 

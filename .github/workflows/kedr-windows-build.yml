@@ -13,7 +13,7 @@ permissions:
 
 env:
   BAZEL_OUTPUT_ROOT: D:/bazelroot
-  ANDROID_COMMIT: d65bac16fd3a2df1c49f928df74c9e67c6282359
+  ANDROID_COMMIT: 935e4531a777fdbd2084c43fa575f27dbb22f728
 
 jobs:
   build:
@@ -77,11 +77,27 @@ jobs:
           restore-keys: |
             kedr-bazel-
 
+      - name: Test local reporting and Go grammar
+        if: inputs.product == 'studio'
+        run: |
+          $tests = @(
+            @{ Target = '//platform/platform-tests:tests_test'; Filter = 'com.intellij.diagnostic.KedrErrorReportSubmitterTest'; Log = 'tests-reporting.log' },
+            @{ Target = '//platform/platform-tests:tests_test'; Filter = 'com.intellij.ide.plugins.advertiser.KedrCommercialSuggestionPolicyTest'; Log = 'tests-suggestions.log' },
+            @{ Target = '//plugins/textmate/tests:tests_test'; Filter = 'org.jetbrains.plugins.textmate.language.syntax.lexer.Go'; Log = 'tests-go.log' }
+          )
+          foreach ($test in $tests) {
+            cmd /c "bazel.cmd test $($test.Target) --test_filter=$($test.Filter) --test_output=errors > $($test.Log) 2>&1"
+            if ($LASTEXITCODE -ne 0) {
+              Get-Content $test.Log -Tail 200
+              throw "test failed: $($test.Filter)"
+            }
+          }
+
       - name: Build
         run: |
           $entry = if ($env:PRODUCT -eq 'python') { 'python\installers.cmd' } else { 'installers.cmd' }
           $log = "build-$env:PRODUCT.log"
-          $buildArgs = '-Dintellij.build.target.os=current'
+          $buildArgs = '-Dintellij.build.target.os=current -Dintellij.build.target.arch=x64'
           cmd /c "$entry $buildArgs > $log 2>&1"
           if ($LASTEXITCODE -ne 0) {
             Get-Content $log -Tail 200
@@ -112,6 +128,7 @@ jobs:
             build-${{ inputs.product }}.log
             verify-${{ inputs.product }}.json
             smoke-${{ inputs.product }}-*.log
+            tests-*.log
           retention-days: 7
 
       - name: Upload release artifacts

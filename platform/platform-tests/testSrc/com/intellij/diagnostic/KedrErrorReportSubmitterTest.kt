@@ -4,6 +4,7 @@ package com.intellij.diagnostic
 import com.intellij.openapi.diagnostic.Attachment
 import com.intellij.openapi.diagnostic.IdeaLoggingEvent
 import com.intellij.openapi.diagnostic.ProblematicPluginInfo
+import com.intellij.openapi.diagnostic.UnhandledExceptionKind
 import com.intellij.testFramework.junit5.TestApplication
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -24,7 +25,8 @@ internal class KedrErrorReportSubmitterTest {
     val included = Attachment("selected.txt", "selected content").apply { isIncluded = true }
     val excluded = Attachment("excluded.txt", "excluded content").apply { isIncluded = false }
     val event = IdeaLoggingEvent("something failed", IllegalStateException("boom"))
-    val events = arrayOf(IdeaLoggingEvent(event.message, event.throwable, listOf(included, excluded), null as ProblematicPluginInfo?, null))
+    val events = arrayOf(IdeaLoggingEvent(event.message, event.throwable, listOf(included, excluded),
+                                          null as ProblematicPluginInfo?, null, UnhandledExceptionKind.HANDLED))
     val target = tempDir.resolve("report.zip")
 
     writeReport(target, events, "I opened a project", mapOf("Product" to "Kedr Studio", "Build" to "IC-262.TEST"))
@@ -46,7 +48,8 @@ internal class KedrErrorReportSubmitterTest {
   @Test
   fun attachmentNamesCannotEscapeTheArchiveDirectory() {
     val attachment = Attachment("../../secret.txt", "content").apply { isIncluded = true }
-    val events = arrayOf(IdeaLoggingEvent("failure", RuntimeException(), listOf(attachment), null as ProblematicPluginInfo?, null))
+    val events = arrayOf(IdeaLoggingEvent("failure", RuntimeException(), listOf(attachment),
+                                          null as ProblematicPluginInfo?, null, UnhandledExceptionKind.HANDLED))
     val target = tempDir.resolve("report.zip")
 
     writeReport(target, events, null, emptyMap())

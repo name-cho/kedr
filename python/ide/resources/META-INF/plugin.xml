@@ -13,5 +13,11 @@
     <plugin id="intellij.pycharm.community.customization.shared"/>
   </dependencies>
 
-  <xi:include href="/META-INF/tips-pycharm-community.xml"/>
+  <extensions defaultExtensionNs="com.intellij">
+    <applicationService serviceInterface="com.intellij.platform.ide.customization.ExternalProductResourceUrls"
+                        serviceImplementation="com.intellij.pycharm.community.customization.PyCharmExternalResourceUrls"
+                        overrides="true"/>
+  </extensions>
+
+  <xi:include href="/META-INF/tips-pycharm-community.xml"><xi:fallback/></xi:include>
 </idea-plugin>

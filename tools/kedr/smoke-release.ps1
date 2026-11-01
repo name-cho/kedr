@@ -15,7 +15,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $requiredPlugins = @{
-  studio = @('com.intellij.java', 'PythonCore', 'su.rus.language-pack')
+  studio = @('com.intellij.java', 'PythonCore', 'com.kedr.go', 'org.jetbrains.plugins.textmate', 'su.rus.language-pack')
   python = @('PythonCore', 'com.jetbrains.pycharm.community.customization', 'su.rus.language-pack')
 }
 $forbiddenModules = @(

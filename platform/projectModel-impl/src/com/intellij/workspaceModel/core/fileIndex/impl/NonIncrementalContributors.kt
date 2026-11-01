@@ -2,8 +2,12 @@
 package com.intellij.workspaceModel.core.fileIndex.impl
 
 import com.intellij.diagnostic.PluginException
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.application.runReadActionBlocking
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.module.ModuleManager
+import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.AdditionalLibraryRootsProvider
 import com.intellij.openapi.roots.JavaSyntheticLibrary
@@ -23,8 +27,8 @@ import com.intellij.platform.workspace.storage.EntityStorage
 import com.intellij.platform.workspace.storage.WorkspaceEntity
 import com.intellij.platform.workspace.storage.url.VirtualFileUrl
 import com.intellij.util.asSafely
-import com.intellij.util.concurrency.annotations.RequiresReadLock
 import com.intellij.util.concurrency.annotations.RequiresWriteLock
+import com.intellij.util.progress.withLockMaybeCancellable
 import com.intellij.workspaceModel.core.fileIndex.EntityStorageKind
 import com.intellij.workspaceModel.core.fileIndex.WorkspaceFileKind
 import com.intellij.workspaceModel.core.fileIndex.WorkspaceFileSet
@@ -34,7 +38,9 @@ import com.intellij.workspaceModel.ide.impl.workspaceModelMetrics
 import it.unimi.dsi.fastutil.objects.Object2IntMap
 import it.unimi.dsi.fastutil.objects.Object2IntMaps
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap
+import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.system.measureTimeMillis
 
 /**
@@ -48,9 +54,11 @@ internal class NonIncrementalContributors(private val project: Project) {
   private var excludedUrls = emptySet<VirtualFileUrl>()
   @Volatile
   private var upToDate = false
-  private val lock = Any()
+  private val lock = ReentrantLock()
 
-  @RequiresReadLock
+  /**
+   * When the caller runs on a background thread and holds no read action, a write action interrupts the call, which then restarts.
+   */
   fun updateIfNeeded(
     fileSets: MutableMap<VirtualFile, StoredFileSetCollection>,
     fileSetsByPackagePrefix: PackagePrefixStorage,
@@ -58,64 +66,76 @@ internal class NonIncrementalContributors(private val project: Project) {
   ) {
     if (upToDate) return
 
-    synchronized(lock) {
-      if (upToDate) return
+    val rebuild: () -> Unit = {
+      lock.withLockMaybeCancellable rebuild@{
+        if (upToDate) return@rebuild
+        ProgressManager.checkCanceled()
 
-      val excludeRootsComputationTime: Long
-      val fileSetsComputationTime: Long
-      val updateTime = measureTimeMillis {
-        val newExcludedRoots: Object2IntMap<VirtualFile>
-        val newExcludedUrls: Set<VirtualFileUrl>
-        excludeRootsComputationTime = measureTimeMillis {
-          val result = computeCustomExcludedRoots()
-          newExcludedRoots = result.first
-          newExcludedUrls = result.second
-        }
-        val newFileSets: Map<VirtualFile, StoredFileSetCollection>
-        fileSetsComputationTime = measureTimeMillis {
-          newFileSets = computeFileSets()
-        }
-
-        /*
-        This function requires 'read access' only, so multiple thread may execute it in parallel, and we need to synchronize write access to
-        the shared fileSets* maps. Modifications here are performed under exclusive lock while holding the global 'Read Action', and other
-        modifications are performed under the global 'Write Action' lock. The maps are always read under 'Read Action', and this function is
-        called under the same 'Read Action' before accessing the map, and `upToDate` flag will not be reset before that read action finishes,
-        so read/write conflicts shouldn't happen.
-        */
-        allRoots.forEach { file ->
-          fileSets.removeValueIf(file) { fileSet: StoredFileSet -> fileSet.entityPointer === NonIncrementalMarker }
-          fileSetsByPackagePrefix.removeByPrefixAndPointer("", NonIncrementalMarker)
-        }
-        excludedUrls.forEach {
-          nonExistingFilesRegistry.unregisterUrl(it, NonIncrementalMarker, EntityStorageKind.MAIN)
-        }
-        val newRoots = HashSet<VirtualFile>()
-        Object2IntMaps.fastForEach(newExcludedRoots) {
-          fileSets.putValue(it.key, ExcludedFileSet.ByFileKind(it.key, it.intValue, NonIncrementalMarker))
-          newRoots.add(it.key)
-        }
-        newExcludedUrls.forEach {
-          nonExistingFilesRegistry.registerUrl(it, NonIncrementalMarker, EntityStorageKind.MAIN,
-                                               NonExistingFileSetKind.EXCLUDED_FROM_CONTENT, recursive = true)
-        }
-        newFileSets.forEach { (root, sets) ->
-          sets.forEach { set ->
-            fileSets.putValue(root, set)
-            val fileSet = set as? WorkspaceFileSetImpl
-            if (fileSet != null && fileSet.data is JvmPackageRootDataInternal) {
-              fileSetsByPackagePrefix.addFileSet("", fileSet)
-            }
+        val excludeRootsComputationTime: Long
+        val fileSetsComputationTime: Long
+        val updateTime = measureTimeMillis {
+          val newExcludedRoots: Object2IntMap<VirtualFile>
+          val newExcludedUrls: Set<VirtualFileUrl>
+          excludeRootsComputationTime = measureTimeMillis {
+            val result = computeCustomExcludedRoots()
+            newExcludedRoots = result.first
+            newExcludedUrls = result.second
           }
-          newRoots.add(root)
+          val newFileSets: Map<VirtualFile, StoredFileSetCollection>
+          fileSetsComputationTime = measureTimeMillis {
+            newFileSets = computeFileSets()
+          }
+
+          /*
+          This function requires 'read access' only, so multiple thread may execute it in parallel, and we need to synchronize write access to
+          the shared fileSets* maps. Modifications here are performed under exclusive lock while holding the global 'Read Action', and other
+          modifications are performed under the global 'Write Action' lock. The maps are always read under 'Read Action', and this function is
+          called under the same 'Read Action' before accessing the map, and `upToDate` flag will not be reset before that read action finishes,
+          so read/write conflicts shouldn't happen.
+          */
+          allRoots.forEach { file ->
+            fileSets.removeValueIf(file) { fileSet: StoredFileSet -> fileSet.entityPointer === NonIncrementalMarker }
+            fileSetsByPackagePrefix.removeByPrefixAndPointer("", NonIncrementalMarker)
+          }
+          excludedUrls.forEach {
+            nonExistingFilesRegistry.unregisterUrl(it, NonIncrementalMarker, EntityStorageKind.MAIN)
+          }
+          val newRoots = HashSet<VirtualFile>()
+          Object2IntMaps.fastForEach(newExcludedRoots) {
+            fileSets.putValue(it.key, ExcludedFileSet.ByFileKind(it.key, it.intValue, NonIncrementalMarker))
+            newRoots.add(it.key)
+          }
+          newExcludedUrls.forEach {
+            nonExistingFilesRegistry.registerUrl(
+              it,
+              NonExistingWorkspaceExclude.ByFileKind(NonIncrementalMarker, EntityStorageKind.MAIN, WorkspaceFileKindMask.ALL),
+            )
+          }
+          newFileSets.forEach { (root, sets) ->
+            sets.forEach { set ->
+              fileSets.putValue(root, set)
+              val fileSet = set as? WorkspaceFileSetImpl
+              if (fileSet != null && fileSet.data is JvmPackageRootDataInternal) {
+                fileSetsByPackagePrefix.addFileSet("", fileSet)
+              }
+            }
+            newRoots.add(root)
+          }
+          allRoots = newRoots
+          excludedUrls = newExcludedUrls
+          upToDate = true
         }
-        allRoots = newRoots
-        excludedUrls = newExcludedUrls
-        upToDate = true
+        totalUpdateTimeMs.duration.addAndGet(updateTime)
+        excludeRootsComputationTimeMs.duration.addAndGet(excludeRootsComputationTime)
+        fileSetsComputationTimeMs.duration.addAndGet(fileSetsComputationTime)
       }
-      totalUpdateTimeMs.duration.addAndGet(updateTime)
-      excludeRootsComputationTimeMs.duration.addAndGet(excludeRootsComputationTime)
-      fileSetsComputationTimeMs.duration.addAndGet(fileSetsComputationTime)
+    }
+    // A non-blocking read action requires a background thread, so EDT keeps the blocking one.
+    if (ApplicationManager.getApplication().isDispatchThread) {
+      runReadActionBlocking(rebuild)
+    }
+    else {
+      ReadAction.nonBlocking(Callable(rebuild)).executeSynchronously()
     }
   }
 
@@ -133,7 +153,7 @@ internal class NonIncrementalContributors(private val project: Project) {
           }
         }
         else {
-          excludedUrls.add(virtualFileUrlManager.getOrCreateFromUrl(url))
+          excludedUrls.add(virtualFileUrlManager.storeAndGet(url))
         }
       }
       @Suppress("DEPRECATION", "removal")
@@ -168,7 +188,7 @@ internal class NonIncrementalContributors(private val project: Project) {
               }
             }
             else {
-              excludedUrls.add(virtualFileUrlManager.getOrCreateFromUrl(pointer.url))
+              excludedUrls.add(virtualFileUrlManager.storeAndGet(pointer.url))
             }
           }
         }
@@ -226,7 +246,7 @@ internal class NonIncrementalContributors(private val project: Project) {
     return result
   }
 
-  @RequiresWriteLock
+  @RequiresWriteLock(generateAssertion = false /* IJPL-115548 */)
   fun resetCache() {
     upToDate = false
   }

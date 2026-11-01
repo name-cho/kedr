@@ -17,7 +17,7 @@ export const PRODUCTS = {
     name: 'Kedr Studio',
     dataDirectoryPrefix: 'KedrStudio',
     launcher: 'bin/idea64.exe',
-    requiredPlugins: ['com.intellij.java', 'PythonCore', 'su.rus.language-pack'],
+    requiredPlugins: ['com.intellij.java', 'PythonCore', 'com.kedr.go', 'org.jetbrains.plugins.textmate', 'su.rus.language-pack'],
   },
   python: {
     code: 'PC',
@@ -286,6 +286,19 @@ function pluginIdsFromDescriptors(zip, prefix, productInfo) {
   return ids;
 }
 
+export function verifyGoHighlighting(zip, prefix) {
+  const bundleRoot = `${prefix}plugins/textmate-plugin/lib/bundles/go/`;
+  for (const file of ['package.json', 'syntaxes/go.tmLanguage.json']) {
+    if (!zip.has(bundleRoot + file)) fail(`Go TextMate bundle file is missing: ${file}`);
+  }
+  const bundle = JSON.parse(zip.readEntry(bundleRoot + 'package.json').toString('utf8'));
+  const grammar = JSON.parse(zip.readEntry(bundleRoot + 'syntaxes/go.tmLanguage.json').toString('utf8'));
+  if (!bundle.contributes?.languages?.some((language) => language.extensions?.includes('.go'))) {
+    fail('Go TextMate bundle does not map .go files');
+  }
+  if (grammar.scopeName !== 'source.go') fail('unexpected Go TextMate grammar scope');
+}
+
 export function verifyProductInfo(zip, productInfoPath, productInfo, product) {
   const expected = PRODUCTS[product];
   if (!expected) fail(`unknown product: ${product}`);
@@ -313,6 +326,7 @@ export function verifyProductInfo(zip, productInfoPath, productInfo, product) {
   for (const id of expected.requiredPlugins) {
     if (!ids.has(id)) fail(`required plugin is missing: ${id}`);
   }
+  if (product === 'studio') verifyGoHighlighting(zip, prefix);
   return { prefix, buildNumber: productInfo.buildNumber };
 }
 
