@@ -19,5 +19,4 @@
                         overrides="true"/>
   </extensions>
 
-  <xi:include href="/META-INF/tips-pycharm-community.xml"><xi:fallback/></xi:include>
 </idea-plugin>
