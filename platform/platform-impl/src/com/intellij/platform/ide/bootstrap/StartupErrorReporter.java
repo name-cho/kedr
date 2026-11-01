@@ -3,6 +3,7 @@ package com.intellij.platform.ide.bootstrap;
 
 import com.intellij.diagnostic.ImplementationConflictException;
 import com.intellij.diagnostic.LoadingState;
+import com.intellij.diagnostic.PluginConflictException;
 import com.intellij.diagnostic.PluginException;
 import com.intellij.ide.KeyboardAwareFocusOwner;
 import com.intellij.ide.plugins.EssentialPluginMissingException;
@@ -22,9 +23,11 @@ import com.intellij.openapi.application.impl.ExceptionsKt;
 import com.intellij.openapi.diagnostic.ControlFlowException;
 import com.intellij.openapi.diagnostic.ExceptionWithAttachments;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.util.NlsSafe;
 import com.intellij.openapi.util.io.NioFiles;
+import com.intellij.openapi.util.text.Strings;
 import com.intellij.util.io.Compressor;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nls;
@@ -34,6 +37,7 @@ import org.jspecify.annotations.NullMarked;
 
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
@@ -64,6 +68,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 
 import static com.intellij.ide.BootstrapBundle.message;
 import static java.util.Objects.requireNonNullElse;
@@ -121,7 +126,7 @@ public final class StartupErrorReporter {
 
     message.append("\n-----\n").append(message("bootstrap.error.appendix.jre", jreDetails()));
 
-    showError(title, message.toString(), t); //NON-NLS
+    showError(title, message.toString(), null, t); //NON-NLS
   }
 
   private static @NlsSafe String jreDetails() {
@@ -134,15 +139,20 @@ public final class StartupErrorReporter {
   }
 
   public static void showError(@Nls(capitalization = Title) String title, @Nls(capitalization = Sentence) String message) {
-    showError(title, message, null);
+    showError(title, message, null, null);
   }
 
   @SuppressWarnings({"UseOfSystemOutOrSystemErr", "UseHtmlChunkToolTip"})
-  private static void showError(@Nls(capitalization = Title) String title, @Nls(capitalization = Sentence) String message, @Nullable Throwable error) {
+  private static void showError(@Nls(capitalization = Title) String title, @Nls(capitalization = Sentence) String message,
+                                @NonNls @Nullable String additionalDiagnostics,
+                                @Nullable Throwable error) {
     System.err.println();
     System.err.println("**" + title + "**");
     System.err.println();
     System.err.println(message);
+    if (additionalDiagnostics != null) {
+      System.err.println(additionalDiagnostics);
+    }
 
     if (!hasGraphics || AppMode.isCommandLine() || GraphicsEnvironment.isHeadless() || AppMode.isRemoteDevHost()) {
       return;
@@ -310,11 +320,11 @@ public final class StartupErrorReporter {
     try {
       var backupPath = ConfigBackup.Companion.getNextBackupPath(PathManager.getConfigDir());
       CustomConfigMigrationOption.StartWithCleanConfig.INSTANCE.writeConfigMarkerFile();
-      var message = message("bootstrap.error.message.reset", backupPath);
+      var message = prepareMessage(message("bootstrap.error.message.reset", backupPath));
       JOptionPane.showMessageDialog(JOptionPane.getRootFrame(), message, message("bootstrap.error.title.reset"), JOptionPane.INFORMATION_MESSAGE);
     }
     catch (Throwable t) {
-      var message = message("bootstrap.error.message.reset.failed", t);
+      var message = prepareMessage(message("bootstrap.error.message.reset.failed", t));
       JOptionPane.showMessageDialog(JOptionPane.getRootFrame(), message, message("bootstrap.error.title.reset"), JOptionPane.ERROR_MESSAGE);
     }
   }
@@ -325,12 +335,15 @@ public final class StartupErrorReporter {
   }
 
   @SuppressWarnings({"UndesirableClassUsage", "HardCodedStringLiteral"})
-  private static JScrollPane prepareMessage(String message) {
+  private static JComponent prepareMessage(String message) {
     var textPane = new SafeActionTextPane();
     textPane.setEditable(false);
     textPane.setText(message.replace("\t", "    "));
     textPane.setBackground(UIManager.getColor("Panel.background"));
     textPane.setCaretPosition(0);
+    if (Strings.countChars(message, '\n') <= 5) {
+      return textPane;
+    }
 
     var scrollPane = new JScrollPane(textPane, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
     scrollPane.setBorder(BorderFactory.createEmptyBorder());
@@ -347,7 +360,8 @@ public final class StartupErrorReporter {
   public static void processException(Throwable t) {
     if (LoadingState.COMPONENTS_LOADED.isOccurred() && !(t instanceof StartupAbortedException)) {
       if (!(t instanceof ControlFlowException)) {
-        PluginManagerCore.getLogger().error(t);
+        // `processUnhandledException` writes the log itself. A second write of the same exception is muted,
+        // and then the message pool never gets the `UnhandledException`. See IJPL-254578.
         ExceptionsKt.processUnhandledException(t, null);
       }
       return;
@@ -355,16 +369,15 @@ public final class StartupErrorReporter {
 
     var essentialPluginMissingException = findCause(t, EssentialPluginMissingException.class);
     if (essentialPluginMissingException != null) {
-      var pluginIds = essentialPluginMissingException.pluginIds;
+      var pluginIds = essentialPluginMissingException.getPluginIds();
       showError(
         message("bootstrap.error.title.corrupted"),
-        message("bootstrap.error.essential.plugins", pluginIds.size(), "  " + String.join("\n  ", pluginIds) + "\n\n")
+        message("bootstrap.error.essential.plugins", pluginIds.size(), "  " + String.join("\n  ", pluginIds) + "\n\n"),
+        essentialPluginMissingException.getDiagnostic(),
+        null
       );
       System.exit(AppExitCodes.INSTALLATION_CORRUPTED);
     }
-
-    var pluginException = findCause(t, PluginException.class);
-    var pluginId = pluginException == null ? null : pluginException.getPluginId();
 
     if (Logger.isInitialized() && !(t instanceof ProcessCanceledException)) {
       try {
@@ -380,12 +393,14 @@ public final class StartupErrorReporter {
     if (LoadingState.COMPONENTS_REGISTERED.isOccurred()) {
       var conflictException = findCause(t, ImplementationConflictException.class);
       if (conflictException != null) {
-        PluginConflictReporter pluginConflictReporter = ApplicationManager.getApplication().getService(PluginConflictReporter.class);
+        var pluginConflictReporter = ApplicationManager.getApplication().getService(PluginConflictReporter.class);
         pluginConflictReporter.reportConflict(conflictException.getConflictingPluginIds(), conflictException.isConflictWithPlatform());
       }
     }
 
-    if (pluginId != null && !ApplicationInfoImpl.getShadowInstance().isEssentialPlugin(pluginId)) {
+    var pluginException = findCause(t, PluginException.class);
+    var pluginId = findNonEssentialPlugin(pluginException);
+    if (pluginId != null) {
       PluginManagerCore.disablePlugin(pluginId);
 
       var message = new StringWriter();
@@ -400,6 +415,28 @@ public final class StartupErrorReporter {
       showError(message("bootstrap.error.title.start.failed"), t);
       System.exit(AppExitCodes.STARTUP_EXCEPTION);
     }
+  }
+
+  private static @Nullable PluginId findNonEssentialPlugin(@Nullable PluginException pluginException) {
+    if (pluginException == null) return null;
+
+    var affectedPlugins = new ArrayList<PluginId>();
+    if (pluginException instanceof PluginConflictException conflictException) {
+      affectedPlugins.add(conflictException.conflictingPluginId);
+    }
+    var pluginId = pluginException.getPluginId();
+    if (pluginId != null) {
+      affectedPlugins.add(pluginId);
+    }
+
+    if (!affectedPlugins.isEmpty()) {
+      var appInfo = ApplicationInfoImpl.getShadowInstance();
+      for (var id : affectedPlugins) {
+        if (!appInfo.isEssentialPlugin(id)) return id;
+      }
+    }
+
+    return null;
   }
 
   private static <T extends Throwable> @Nullable T findCause(Throwable t, Class<T> clazz) {
