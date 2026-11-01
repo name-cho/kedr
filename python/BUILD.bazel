@@ -115,6 +115,7 @@ jvm_library(
 ### auto-generated section `iml intellij.pycharm.community.customization` start
 exports_files(
     [
+        "ide/resources/META-INF/plugin.xml",
         "intellij.pycharm.community.customization.iml",
     ],
     visibility = ["//visibility:public"],
@@ -676,6 +677,7 @@ jvm_library(
 exports_files(
     [
         "intellij.python.community.impl.iml",
+        "pluginResources/intellij.python.community.impl.xml",
     ],
     visibility = ["//visibility:public"],
 )
@@ -1601,6 +1603,7 @@ jvm_library(
 exports_files(
     [
         "intellij.python.pydev.iml",
+        "pydevSrc/resources/intellij.python.pydev.xml",
     ],
     visibility = ["//visibility:public"],
 )
