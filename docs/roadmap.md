@@ -20,8 +20,7 @@ Target platform: **Windows x64**. macOS and Linux are out of scope until someone
   (verified at runtime in both products)
 - [x] Portable Windows ZIP for both products: `kedr-studio-262.10968.SNAPSHOT.win.zip` (~933 MB) and
   `kedr-python-262.10968.SNAPSHOT.win.zip` (~587 MB); both launch from an extracted folder
-- [ ] Rename `bin/idea64.exe` / `bin/pycharm64.exe` (needs matching `.vmoptions` names; verify the native launcher)
-- [x] Keep upstream product codes `IC`/`PC` and build numbers so Marketplace plugin compatibility keeps working
+- [x] Keep `bin/idea64.exe` / `bin/pycharm64.exe` and upstream product codes `IC`/`PC` so Marketplace plugin compatibility keeps working
 
 ## M2 — Remove subscription and upsell UI
 
@@ -33,12 +32,15 @@ See `upsell-audit.md` for what actually exists in the OSS build.
 - [x] Marketplace "Staff Picks" group removed (it promoted paid JetBrains AI products)
 - [x] Help menu: bug report, technical support, feedback, YouTube, online docs and "What's New" removed
 - [x] Update checks disabled by emptying `ExternalProductResourceUrls` (no update server yet)
-- [ ] Decide whether paid plugins should be filtered out of Marketplace search
+- [x] Keep third-party paid plugins visible in Marketplace search; remove Kedr/JetBrains edition upsell instead
+- [x] Disable commercial-edition suggestions and unbundle promo modules (`intellij.java.promo`, `intellij.pycharm.community.ide.impl.promotion`, `intellij.vcs.github.ultimatePromo`)
+- [x] Replace JetBrains error reporting with local ZIP reports (IDE errors, startup failures, memory-use reports)
 - [ ] Hide the now-empty privacy consent page for non-JetBrains vendors
 
-## M3 — Python inside Kedr Studio
+## M3 — Professional Python development
 
-- [x] Bundle `intellij.python.community.plugin` and its dependency set into the Studio product layout
+- [x] Build Kedr Python as a dedicated Python IDE
+- [x] Bundle `intellij.python.community.plugin` and its dependency set into Studio as well
 - [ ] Verify at runtime: Python run configurations, virtualenv/uv/conda interpreters, Jupyter, tests, debugger
 - [ ] Verify no duplicate plugin ids when the Python plugin is also installed separately
 
@@ -49,12 +51,14 @@ core, the type engine, Jupyter (via the notebook modules), pytest/unittest and t
 - [ ] `mypy` integration (upstream dropped it in favour of ty/pyright/pyrefly)
 - [ ] Decide whether the Studio build enables the Python "minor IDE" modules too
 
-## M4 — Go support
+## M4 — Go in Kedr Studio
 
-- New in-tree plugin using the open LSP client API (open-sourced in 2026.2)
-- `gopls` auto-detection (PATH, `GOROOT`, `go install`), diagnostics, completion, formatting, imports
-- Syntax highlighting via TextMate grammar, `go.mod`/`go.sum` file types
-- Run configurations for `go run`, `go test`, `go build`
+- [x] Keep Go in the universal-editor scope, including installer file associations
+- [x] Bundle the Go TextMate grammar for syntax highlighting without an external language server
+- [x] Provide the Kedr Go plugin and New Project wizard
+- [x] Connect `gopls` through the open LSP client when it is available on `PATH`
+- [ ] Add Go toolchain discovery beyond `PATH` and run configurations for `go run`, `go test`, `go build`
+- [ ] Verify highlighting, `go.mod`/`go.sum` handling and the optional LSP integration in Windows release smoke tests
 
 ## M5 — Russian localisation
 
@@ -71,12 +75,15 @@ core, the type engine, Jupyter (via the notebook modules), pytest/unittest and t
 - [x] Windows installer (NSIS) for both products
 - No signature initially; document SmartScreen behaviour
 - [x] `LICENSE` (Apache 2.0), `NOTICE`, root `README`; upstream build notes kept as `README-upstream.md`
-- [ ] Third-party license report, changelog, checksums
-- [ ] Tag `v0.1.0` and attach ZIPs/installers to the release
+- [x] SHA-256/SHA-512 sidecars, combined `SHA256SUMS`, artifact verification and Windows smoke checks in CI
+- [x] Draft GitHub release workflow for ZIPs and installers
+- [ ] Third-party license report and changelog polish
+- [ ] Tag `v0.1.0`, review the draft release, and publish
 
 ## M7 — CI
 
 - [x] GitHub Actions workflow (`kedr-windows.yml` + reusable `kedr-windows-build.yml`), Windows runner, Bazel cache, artifact upload
+- [x] Pinned actions and Android module checkout; repository checks workflow (`kedr-checks.yml`)
 - [ ] First green CI run on GitHub
 - [ ] Reproducible build script for contributors
 

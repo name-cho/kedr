@@ -22,7 +22,7 @@ import com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.PluginSugge
 import com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.PluginSuggestionProvider
 import com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.createTryUltimateActionLabel
 import com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.installAndEnable
-import com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.tryUltimateIsDisabled
+import com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.isTryUltimateDisabledByUser
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDirectory
 import com.intellij.psi.PsiFile
@@ -38,7 +38,7 @@ internal class WireMockSuggestionProvider : PluginSuggestionProvider {
   override fun getSuggestion(project: Project, file: VirtualFile): PluginSuggestion? {
     if (!FileTypeManager.getInstance().isFileOfType(file, JsonFileType.INSTANCE)) return null
 
-    if (isPluginSuggestionDismissed() || tryUltimateIsDisabled()) return null
+    if (isPluginSuggestionDismissed() || isTryUltimateDisabledByUser()) return null
 
     val requiredPluginId = PluginId.getId(WIREMOCK_PLUGIN_ID)
     if (PluginManager.isPluginInstalled(requiredPluginId)) return null

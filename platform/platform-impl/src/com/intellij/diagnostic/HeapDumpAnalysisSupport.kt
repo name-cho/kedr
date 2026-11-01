@@ -34,23 +34,20 @@ internal class HeapDumpAnalysisSupport {
     fun getInstance(): HeapDumpAnalysisSupport = service<HeapDumpAnalysisSupport>()
   }
 
-  fun getPrivacyPolicyUrl(): String = "https://www.jetbrains.com/company/privacy.html"
+  fun getReportHelpUrl(): String = "https://github.com/name-cho/kedr/blob/main/docs/troubleshooting.md"
 
   @RequiresEdt(generateAssertion = false)
-  fun uploadReport(
+  fun saveReport(
     reportText: String,
     heapReportProperties: HeapReportProperties,
     parentComponent: Component,
-    automaticReport: Boolean = false,
   ) {
     ThreadingAssertions.assertEventDispatchThread()
 
-    val messageText = if (automaticReport) "Heap analysis results (auto)" else "Heap analysis results"
     val text = getHeapDumpReportText(reportText, heapReportProperties)
     val attachment = Attachment("report.txt", text).apply { isIncluded = true }
-    attachment.isIncluded = true
-    val event = IdeaLoggingEvent(messageText, OutOfMemoryError(), listOf(attachment), null as IdeaPluginDescriptor?, null)
-    ErrorReportSubmitter.EP_NAME.findExtension(ITNReporter::class.java)?.submit(arrayOf(event), null, parentComponent) { }
+    val event = IdeaLoggingEvent("Heap analysis results", OutOfMemoryError(), listOf(attachment), null as IdeaPluginDescriptor?, null)
+    ErrorReportSubmitter.EP_NAME.findExtension(KedrErrorReportSubmitter::class.java)?.submit(arrayOf(event), null, parentComponent) { }
   }
 
   /**

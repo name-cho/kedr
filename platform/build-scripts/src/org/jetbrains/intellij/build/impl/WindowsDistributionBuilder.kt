@@ -372,7 +372,7 @@ internal class WindowsDistributionBuilder(
         }
       val launcherProperties = mapOf(
         "CompanyName" to appInfo.companyName,
-        "LegalCopyright" to "Copyright 2000-${LocalDate.now().year} ${appInfo.companyName}",
+        "LegalCopyright" to "Copyright ${LocalDate.now().year} ${appInfo.companyName}",
         "ProductName" to appInfo.productNameWithEdition,
         "ProductVersion" to "$productVersion-${appInfo.productCode}", // "242.1234.56.0-IU"
       )

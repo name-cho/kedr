@@ -39,6 +39,7 @@ import com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.PluginAdver
 import com.intellij.openapi.util.NlsContexts
 import com.intellij.openapi.util.NlsContexts.NotificationContent
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.platform.ide.customization.ExternalProductResourceUrls
 import com.intellij.ui.EditorNotificationPanel
 import com.intellij.ui.EditorNotifications
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
@@ -69,8 +70,12 @@ sealed interface PluginAdvertiserService {
       return getSuggestedCommercialIdeCode(thisProductCode) != null
     }
 
+    fun areCommercialEditionSuggestionsEnabled(): Boolean =
+      ExternalProductResourceUrls.getInstance().commercialEditionSuggestionsEnabled
+
     @JvmStatic
     fun getSuggestedCommercialIdeCode(activeProductCode: String): String? {
+      if (!areCommercialEditionSuggestionsEnabled()) return null
       return when (activeProductCode) {
         "IC", "AI" -> "IU"
         "PC" -> "PY"
@@ -460,7 +465,7 @@ open class PluginAdvertiserServiceImpl(
 
       Pair(messagePresentation, notificationActions)
     }
-    else if (bundledPlugins.isNotEmpty() && !isIgnoreIdeSuggestion) {
+    else if (bundledPlugins.isNotEmpty() && !isIgnoreIdeSuggestion && !tryUltimateIsDisabled()) {
       IdeBundle.message(
         "plugins.advertiser.ultimate.features.detected",
         bundledPlugins.joinToString()
@@ -684,7 +689,11 @@ fun disableTryUltimate(project: Project) = setTryUltimateKey(project, true)
 fun enableTryUltimate(project: Project) = setTryUltimateKey(project, false)
 
 @ApiStatus.Internal
-fun tryUltimateIsDisabled(): Boolean = PropertiesComponent.getInstance().getBoolean(TRY_ULTIMATE_DISABLED_KEY)
+fun isTryUltimateDisabledByUser(): Boolean = PropertiesComponent.getInstance().getBoolean(TRY_ULTIMATE_DISABLED_KEY)
+
+@ApiStatus.Internal
+fun tryUltimateIsDisabled(): Boolean =
+  !PluginAdvertiserService.areCommercialEditionSuggestionsEnabled() || isTryUltimateDisabledByUser()
 
 @ApiStatus.Internal
 fun tryUltimate(
@@ -695,6 +704,7 @@ fun tryUltimate(
   currentFile: VirtualFile? = null,
   fallback: (() -> Unit)? = null,
 ) {
+  if (tryUltimateIsDisabled()) return
   val eventSource = fusEventSource ?: FUSEventSource.EDITOR
   OpenAnotherToolHandler.EP_NAME.extensionList
     .firstOrNull() { it.isApplicable(project, suggestedIde, pluginId) }

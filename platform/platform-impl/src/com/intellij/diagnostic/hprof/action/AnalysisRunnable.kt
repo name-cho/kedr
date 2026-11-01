@@ -16,9 +16,7 @@
 package com.intellij.diagnostic.hprof.action
 
 import com.intellij.diagnostic.DiagnosticBundle
-import com.intellij.diagnostic.ExceptionAutoReportUtil
 import com.intellij.diagnostic.HeapDumpAnalysisSupport
-import com.intellij.diagnostic.ITNProxyCoroutineScopeHolder
 import com.intellij.diagnostic.hprof.analysis.HProfAnalysis
 import com.intellij.diagnostic.hprof.analysis.analyzeGraph
 import com.intellij.diagnostic.hprof.util.HeapDumpAnalysisNotificationGroup
@@ -32,23 +30,15 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationInfo
 import com.intellij.openapi.application.ApplicationNamesInfo
-import com.intellij.openapi.application.EDT
-import com.intellij.openapi.application.impl.ApplicationInfoImpl
-import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task
-import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.DialogWrapper
-import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.openapi.wm.WindowManager
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.SwingHelper
 import com.intellij.util.ui.UIUtil
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.awt.BorderLayout
 import java.nio.channels.FileChannel
 import java.nio.file.Files
@@ -121,21 +111,6 @@ internal class AnalysisRunnable(
       notification.setSuggestionType(true)
       notification.addAction(ReviewReportAction(reportText, heapProperties))
       notification.notify(null)
-
-      val guessProject = IdeFocusManager.getGlobalInstance().lastFocusedFrame?.project
-                         ?: ProjectManager.getInstance().openProjects.firstOrNull()
-
-      val parentComponent = WindowManager.getInstance().getFrame(guessProject)
-      if (parentComponent != null) {
-        service<ITNProxyCoroutineScopeHolder>().coroutineScope.launch {
-          // even if users forget to report explicitly, we still report it based on consent
-          if (ExceptionAutoReportUtil.isAutoReportEnabled()) {
-            withContext(Dispatchers.EDT) {
-              HeapDumpAnalysisSupport.getInstance().uploadReport(reportText, heapProperties, parentComponent)
-            }
-          }
-        }
-      }
     }
   }
 
@@ -159,7 +134,7 @@ internal class AnalysisRunnable(
         HeapDumpAnalysisSupport.getInstance().analysisComplete(heapProperties)
 
         if (userAgreedToSendReport) {
-          HeapDumpAnalysisSupport.getInstance().uploadReport(reportText, heapProperties, parentComponent)
+          HeapDumpAnalysisSupport.getInstance().saveReport(reportText, heapProperties, parentComponent)
         }
       }
     }
@@ -200,9 +175,7 @@ internal class ShowReportDialog(reportText: String, heapProperties: HeapReportPr
   override fun createCenterPanel(): JComponent {
     val pane = JPanel(BorderLayout(0, 5))
     val productName = ApplicationNamesInfo.getInstance().fullProductName
-    val vendorName = ApplicationInfoImpl.getShadowInstance().shortCompanyName
-
-    val header = JLabel(DiagnosticBundle.message("heap.dump.analysis.report.dialog.header", productName, vendorName))
+    val header = JLabel(DiagnosticBundle.message("heap.dump.analysis.report.dialog.header", productName))
 
     pane.add(header, BorderLayout.PAGE_START)
     pane.add(JBScrollPane(textArea), BorderLayout.CENTER)
@@ -215,7 +188,7 @@ internal class ShowReportDialog(reportText: String, heapProperties: HeapReportPr
         }
       }
       text = DiagnosticBundle.message("heap.dump.analysis.report.dialog.footer",
-                                      ApplicationInfo.getInstance().shortCompanyName, HeapDumpAnalysisSupport.getInstance().getPrivacyPolicyUrl())
+                                      ApplicationInfo.getInstance().shortCompanyName, HeapDumpAnalysisSupport.getInstance().getReportHelpUrl())
       pane.add(this, BorderLayout.PAGE_END)
     }
 

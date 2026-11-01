@@ -60,7 +60,7 @@ class PluginAdvertiserEditorNotificationProvider : EditorNotificationProvider, D
   override fun collectNotificationData(project: Project, file: VirtualFile): Function<in FileEditor, out JComponent?>? {
     if (!TrustedProjects.isProjectTrusted(project)) return null
 
-    if (application.isHeadlessEnvironment || tryUltimateIsDisabled()) {
+    if (application.isHeadlessEnvironment || isTryUltimateDisabledByUser()) {
       return null
     }
 
@@ -386,7 +386,7 @@ private fun getSuggestionData(
     getSuggestedIdes(activeProductCode = activeProductCode,
                      extensionOrFileName = extensionOrFileName,
                      ideExtensions = ideExtensions).ifEmpty {
-      if (hasBundledPlugin && !isIgnoreIdeSuggestion) listOf(PluginAdvertiserService.ideaUltimate) else emptyList()
+      if (hasBundledPlugin && !isIgnoreIdeSuggestion && !tryUltimateIsDisabled()) listOf(PluginAdvertiserService.ideaUltimate) else emptyList()
     }
   }
   else {
@@ -401,7 +401,7 @@ private fun getSuggestedIdes(
   extensionOrFileName: String,
   ideExtensions: Map<String, List<String>>,
 ): List<SuggestedIde> {
-  if (isIgnoreIdeSuggestion) {
+  if (isIgnoreIdeSuggestion || tryUltimateIsDisabled()) {
     return emptyList()
   }
 
