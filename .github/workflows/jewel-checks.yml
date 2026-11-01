@@ -296,17 +296,19 @@ jobs:
       - name: Run the Bazel build generator script
         run: ./build/jpsModelToBazelCommunityOnly.cmd
 
-      - name: Save generated model update
+      - name: Upload generated model update
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'arena/aaff0dd7-kedr'
-        run: |
-          git diff --binary > /tmp/kedr-model.patch
-          if [ -s /tmp/kedr-model.patch ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -A -- ':!android'
-            git commit -m "Regenerate Bazel model for the unified product tree"
-            git push origin HEAD:arena/aaff0dd7-kedr
-          fi
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: kedr-generated-model
+          path: |
+            lib/BUILD.bazel
+            build/BUILD.bazel
+            plugins/go/BUILD.bazel
+            plugins/textmate/tests/BUILD.bazel
+            python/BUILD.bazel
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Check that the Bazel build is up-to-date (except android submodule)
         run: |
