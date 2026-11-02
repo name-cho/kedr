@@ -1,0 +1,47 @@
+name: Mirror to GitGud
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+  schedule:
+    - cron: '17 3 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitgud-mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GITGUD_TOKEN: ${{ secrets.GITGUD_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+
+      - name: Check GitGud token
+        run: test -n "$GITGUD_TOKEN"
+
+      - name: Mirror repositories
+        run: node tools/kedr/mirror-gitgud.mjs --work-dir gitgud-mirror-work
+
+      - name: Upload mirror backup
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gitgud-mirror-backup
+          path: |
+            gitgud-mirror-work/*.bundle
+            gitgud-mirror-work/*.json
+          if-no-files-found: warn
+          retention-days: 30
