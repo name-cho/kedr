@@ -20,9 +20,14 @@ Kedr uses one long-lived branch: `main`.
 ## Mirror rules
 
 GitHub is the write target for development. GitGud follows GitHub.
+The `Mirror to GitGud` workflow syncs both repositories from GitHub to GitGud.
+It runs on pushes to `main`, on `v*` tags, on a daily schedule, and on manual dispatch.
+It requires the repository secret `GITGUD_TOKEN` with `api` and `write_repository` access.
+
 A mirror sync must compare the final branch and tag lists, not only the latest commit title.
-Do not delete a mirror branch that contains work absent from `main` and from the kept tags.
-If a mirror has diverged, preserve its old refs in a backup before the sync.
+The workflow keeps only `main` on GitGud and removes other mirror branches.
+Before it changes GitGud, it uploads a bundle and a ref list as a workflow artifact.
+It keeps tags and published releases. Release pages on GitGud link to the original GitHub assets.
 
 ## Release locations
 

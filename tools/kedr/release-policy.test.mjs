@@ -95,7 +95,8 @@ test('release workflows are pinned and publish both packages', () => {
   const build = read('.github/workflows/kedr-windows-build.yml');
   const release = read('.github/workflows/kedr-windows.yml');
   const checks = read('.github/workflows/kedr-checks.yml');
-  for (const content of [build, release, checks]) {
+  const mirror = read('.github/workflows/mirror-gitgud.yml');
+  for (const content of [build, release, checks, mirror]) {
     for (const match of content.matchAll(/^\s*-?\s*uses:\s*(\S+)/gm)) {
       const uses = match[1];
       if (uses.startsWith('./')) continue;
@@ -112,6 +113,9 @@ test('release workflows are pinned and publish both packages', () => {
   assert.ok(release.includes('--draft'));
   assert.ok(release.includes('SHA256SUMS'));
   assert.ok(checks.includes('node --test tools/kedr/*.test.mjs'));
+  assert.ok(mirror.includes('secrets.GITGUD_TOKEN'));
+  assert.ok(mirror.includes('node tools/kedr/mirror-gitgud.mjs'));
+  assert.ok(mirror.includes('gitgud-mirror-work/*.bundle'));
 });
 
 test('Studio bundles Go highlighting independently of gopls', () => {
