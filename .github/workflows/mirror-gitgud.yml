@@ -33,7 +33,23 @@ jobs:
         run: test -n "$GITGUD_TOKEN"
 
       - name: Mirror repositories
-        run: node tools/kedr/mirror-gitgud.mjs --work-dir gitgud-mirror-work
+        run: |
+          mkdir -p gitgud-mirror-work
+          set -o pipefail
+          node tools/kedr/mirror-gitgud.mjs --work-dir gitgud-mirror-work 2>&1 | tee gitgud-mirror-work/mirror.log
+
+      - name: Publish mirror log
+        if: always()
+        run: |
+          if [ -f gitgud-mirror-work/mirror.log ]; then
+            {
+              echo '## GitGud mirror log'
+              echo '```text'
+              tail -c 100000 gitgud-mirror-work/mirror.log
+              echo
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload mirror backup
         if: always()
@@ -43,5 +59,6 @@ jobs:
           path: |
             gitgud-mirror-work/*.bundle
             gitgud-mirror-work/*.json
+            gitgud-mirror-work/*.log
           if-no-files-found: warn
           retention-days: 30
