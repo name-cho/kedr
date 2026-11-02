@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -147,6 +147,50 @@ function parseRefs(output) {
   return refs;
 }
 
+function runCommand(command, args) {
+  const result = spawnSync(command, args, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`${command} failed: ${(result.stderr ?? '').trim()}`);
+  return result.stdout;
+}
+
+async function createDeployKey(projectId, token, directory, name) {
+  const keyPath = join(directory, `id_ed25519_${name}`);
+  const knownHostsPath = join(directory, `known_hosts_${name}`);
+  runCommand('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', keyPath, '-C', `kedr-mirror-${name}`]);
+  const publicKey = readFileSync(`${keyPath}.pub`, 'utf8').trim();
+  const key = await gitgud(`/projects/${projectId}/deploy_keys`, {
+    token,
+    method: 'POST',
+    body: { title: `kedr-mirror-${name}-${Date.now()}`, key: publicKey, can_push: true },
+  });
+  try {
+    const knownHosts = runCommand('ssh-keyscan', ['-T', '10', 'gitgud.io']);
+    if (!knownHosts.trim()) throw new Error('ssh-keyscan returned no host keys');
+    writeFileSync(knownHostsPath, knownHosts);
+  } catch (error) {
+    await gitgud(`/projects/${projectId}/deploy_keys/${key.id}`, { token, method: 'DELETE' });
+    rmSync(keyPath, { force: true });
+    rmSync(`${keyPath}.pub`, { force: true });
+    throw error;
+  }
+  return {
+    env: {
+      GIT_TERMINAL_PROMPT: '0',
+      GIT_SSH_COMMAND: `ssh -i ${keyPath} -o IdentitiesOnly=yes -o UserKnownHostsFile=${knownHostsPath} -o StrictHostKeyChecking=yes`,
+    },
+    async cleanup() {
+      try {
+        await gitgud(`/projects/${projectId}/deploy_keys/${key.id}`, { token, method: 'DELETE' });
+      } finally {
+        rmSync(keyPath, { force: true });
+        rmSync(`${keyPath}.pub`, { force: true });
+        rmSync(knownHostsPath, { force: true });
+      }
+    },
+  };
+}
+
 async function unprotectedBranch(projectId, branch, token) {
   return gitgud(`/projects/${projectId}/protected_branches/${encodeURIComponent(branch)}`, { token, allow404: true });
 }
@@ -229,12 +273,16 @@ async function syncProject(project, workDir, authDir, token, githubToken, userna
   const beforeBranches = await gitgudList(`/projects/${projectId}/repository/branches`, token);
   const beforeTags = await gitgudList(`/projects/${projectId}/repository/tags`, token);
   const deleteNames = branchesToDelete(beforeBranches);
-  console.log(`[${project.gitgud}] unprotect main`);
-  const mainProtection = await deleteBranchProtection(projectId, 'main', token);
+  console.log(`[${project.gitgud}] create temporary deploy key`);
+  const deployKey = await createDeployKey(projectId, token, authDir, safeName);
+  const sshUrl = `git@gitgud.io:${project.gitgud}.git`;
   const tagProtections = [];
   const deletedBranches = [];
+  let mainProtection = null;
 
   try {
+    console.log(`[${project.gitgud}] unprotect main`);
+    mainProtection = await deleteBranchProtection(projectId, 'main', token);
     for (const tag of Object.keys(sourceRefs).filter((ref) => ref.startsWith('refs/tags/'))) {
       const name = tag.slice('refs/tags/'.length);
       const protection = await protectedTag(projectId, name, token);
@@ -244,9 +292,9 @@ async function syncProject(project, workDir, authDir, token, githubToken, userna
       }
     }
     console.log(`[${project.gitgud}] push main`);
-    runGit(['-C', sourceDir, 'push', gitgudUrl, 'refs/heads/main:refs/heads/main', '--force'], { env: authEnv });
+    runGit(['-C', sourceDir, 'push', sshUrl, 'refs/heads/main:refs/heads/main', '--force'], { env: deployKey.env });
     console.log(`[${project.gitgud}] push tags`);
-    runGit(['-C', sourceDir, 'push', gitgudUrl, 'refs/tags/*:refs/tags/*', '--force'], { env: authEnv });
+    runGit(['-C', sourceDir, 'push', sshUrl, 'refs/tags/*:refs/tags/*', '--force'], { env: deployKey.env });
     for (const name of deleteNames) {
       console.log(`[${project.gitgud}] delete branch ${name}`);
       await deleteBranchProtection(projectId, name, token);
@@ -254,13 +302,17 @@ async function syncProject(project, workDir, authDir, token, githubToken, userna
       deletedBranches.push(name);
     }
   } finally {
-    await restoreBranchProtection(projectId, mainProtection, token);
-    for (const protection of tagProtections) {
-      await gitgud(`/projects/${projectId}/protected_tags`, {
-        token,
-        method: 'POST',
-        body: { name: protection.name, create_access_level: protection.create_access_levels?.[0]?.access_level ?? 40 },
-      });
+    try {
+      await restoreBranchProtection(projectId, mainProtection, token);
+      for (const protection of tagProtections) {
+        await gitgud(`/projects/${projectId}/protected_tags`, {
+          token,
+          method: 'POST',
+          body: { name: protection.name, create_access_level: protection.create_access_levels?.[0]?.access_level ?? 40 },
+        });
+      }
+    } finally {
+      await deployKey.cleanup();
     }
   }
 
