@@ -95,7 +95,7 @@ function productInfo(product, overrides = {}) {
     ],
     bundledPlugins: studio
       ? ['com.intellij.java', 'PythonCore', 'com.kedr.go', 'org.jetbrains.plugins.textmate', 'su.rus.language-pack']
-      : ['PythonCore', 'com.jetbrains.pycharm.community.customization', 'su.rus.language-pack'],
+      : ['PythonCore', 'com.jetbrains.pycharm.community.customization', 'com.kedr.go', 'su.rus.language-pack'],
     layout: [],
     ...overrides,
   };
@@ -116,7 +116,7 @@ function withTemp(run) {
   }
 }
 
-function writeArtifacts(directory, product, { info = productInfo(product), missingExe = false } = {}) {
+function writeArtifacts(directory, product, { info = productInfo(product), missingExe = false, sources = false } = {}) {
   const stem = `kedr-${product}-262.TEST`;
   const launcher = product === 'studio' ? 'bin/idea64.exe' : 'bin/pycharm64.exe';
   const vmOptions = product === 'studio' ? 'bin/idea64.exe.vmoptions' : 'bin/pycharm64.exe.vmoptions';
@@ -136,6 +136,9 @@ function writeArtifacts(directory, product, { info = productInfo(product), missi
     writeFileSync(join(directory, `${stem}.exe`), fakeExe());
     writeChecksum(join(directory, `${stem}.exe`), 'sha256');
     writeChecksum(join(directory, `${stem}.exe`), 'sha512');
+  }
+  if (sources) {
+    writeFileSync(join(directory, `${stem}-sources.zip`), makeZip({ 'src/Main.kt': 'fun main() {}\n' }));
   }
   return stem;
 }
@@ -190,6 +193,39 @@ test('release verification works for Kedr Python', () => {
     writeArtifacts(directory, 'python');
     const result = verifyRelease({ product: 'python', artifactsDir: directory });
     assert.equal(result.artifacts.exe, 'kedr-python-262.TEST.exe');
+    assert.equal(result.artifacts.sources, null);
+  });
+});
+
+test('Python requires the Go plugin', () => {
+  withTemp((directory) => {
+    writeArtifacts(directory, 'python', {
+      info: productInfo('python', {
+        bundledPlugins: ['PythonCore', 'com.jetbrains.pycharm.community.customization', 'su.rus.language-pack'],
+      }),
+    });
+    assert.throws(() => verifyRelease({ product: 'python', artifactsDir: directory }), /required plugin is missing: com.kedr.go/);
+  });
+});
+
+test('sources archive gets checksums and is staged', () => {
+  withTemp((directory) => {
+    const stem = writeArtifacts(directory, 'python', { sources: true });
+    const stage = join(directory, 'stage');
+    const result = verifyRelease({ product: 'python', artifactsDir: directory, stageDir: stage });
+    assert.equal(result.artifacts.sources, `${stem}-sources.zip`);
+    assert.equal(result.checksums.sources.sha256, hashFile(join(directory, `${stem}-sources.zip`), 'sha256'));
+    for (const name of [`${stem}-sources.zip`, `${stem}-sources.zip.sha256`, `${stem}-sources.zip.sha512`]) {
+      assert.ok(result.staged.includes(name), `missing staged file: ${name}`);
+    }
+  });
+});
+
+test('a wrong sources checksum is rejected', () => {
+  withTemp((directory) => {
+    const stem = writeArtifacts(directory, 'python', { sources: true });
+    writeFileSync(join(directory, `${stem}-sources.zip.sha256`), `${'0'.repeat(64)} *${stem}-sources.zip\n`);
+    assert.throws(() => verifyRelease({ product: 'python', artifactsDir: directory }), /sha256 mismatch/);
   });
 });
 

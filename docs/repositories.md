@@ -34,3 +34,9 @@ It keeps tags and published releases. Release pages on GitGud link to the origin
 - Kedr Studio releases: `https://github.com/name-cho/kedr/releases`
 - Kedr Python releases: `https://github.com/name-cho/kedr-python/releases`
 - GitGud releases must use the same tag names and point users to the same artifacts.
+
+## CI roles
+
+GitHub Actions builds and publishes the Windows products. GitGud does not build them.
+
+GitGud runs GitLab, so it supports both releases and pipelines. Its shared runners need an access request, so `.gitlab-ci.yml` stays disabled until the project variable `KEDR_CI_ENABLED` is `true`. When enabled, it runs the policy tests and verifies that every GitHub release asset has a mirror link. See [release.md](release.md).

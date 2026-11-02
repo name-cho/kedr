@@ -16,7 +16,7 @@ $ErrorActionPreference = 'Stop'
 
 $requiredPlugins = @{
   studio = @('com.intellij.java', 'PythonCore', 'com.kedr.go', 'org.jetbrains.plugins.textmate', 'su.rus.language-pack')
-  python = @('PythonCore', 'com.jetbrains.pycharm.community.customization', 'su.rus.language-pack')
+  python = @('PythonCore', 'com.jetbrains.pycharm.community.customization', 'com.kedr.go', 'su.rus.language-pack')
 }
 $forbiddenModules = @(
   'intellij.pycharm.community.ide.impl.promotion',

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -24,7 +25,7 @@ export const PRODUCTS = {
     name: 'Kedr Python',
     dataDirectoryPrefix: 'KedrPython',
     launcher: 'bin/pycharm64.exe',
-    requiredPlugins: ['PythonCore', 'com.jetbrains.pycharm.community.customization', 'su.rus.language-pack'],
+    requiredPlugins: ['PythonCore', 'com.jetbrains.pycharm.community.customization', 'com.kedr.go', 'su.rus.language-pack'],
   },
 };
 
@@ -222,6 +223,11 @@ export function verifyChecksums(path) {
   return result;
 }
 
+export function verifyChecksumsAfterWrite(path) {
+  writeChecksumSidecars(path);
+  return verifyChecksums(path);
+}
+
 export function findReleaseArtifacts(directory, product) {
   if (!PRODUCTS[product]) fail(`unknown product: ${product}`);
   const prefix = `kedr-${product}-`;
@@ -336,6 +342,25 @@ function stageFile(source, stageDir, staged) {
   staged.push(target);
 }
 
+export function writeChecksumSidecars(path) {
+  for (const algorithm of ['sha256', 'sha512']) {
+    const sidecar = `${path}.${algorithm}`;
+    const digest = hashFile(path, algorithm);
+    if (existsSync(sidecar)) {
+      const existing = parseChecksum(readFileSync(sidecar, 'utf8'), basename(path), algorithm);
+      if (existing !== digest) fail(`${algorithm} mismatch for ${basename(path)}`);
+    }
+    else {
+      writeFileSync(sidecar, `${digest} *${basename(path)}\n`);
+    }
+  }
+}
+
+export function findSourcesArchive(directory, stem) {
+  const name = `${stem}-sources.zip`;
+  return existsSync(join(directory, name)) ? join(directory, name) : null;
+}
+
 export function verifyRelease({ product, artifactsDir, stageDir }) {
   const artifacts = findReleaseArtifacts(artifactsDir, product);
   const checksums = {
@@ -343,6 +368,19 @@ export function verifyRelease({ product, artifactsDir, stageDir }) {
     exe: verifyChecksums(artifacts.exe),
   };
   verifyPortableExecutable(artifacts.exe);
+
+  const sources = findSourcesArchive(artifactsDir, artifacts.stem);
+  if (sources) {
+    checksums.sources = verifyChecksumsAfterWrite(sources);
+    const archive = ZipArchive.open(sources);
+    try {
+      if (archive.entries.size === 0) fail('sources archive is empty');
+      for (const name of archive.entries.keys()) assertSafeEntryName(name);
+    }
+    finally {
+      archive.close();
+    }
+  }
 
   const zip = ZipArchive.open(artifacts.zip);
   let buildNumber;
@@ -366,7 +404,7 @@ export function verifyRelease({ product, artifactsDir, stageDir }) {
   const staged = [];
   if (stageDir) {
     mkdirSync(stageDir, { recursive: true });
-    for (const path of [artifacts.zip, artifacts.exe]) {
+    for (const path of [artifacts.zip, artifacts.exe, sources].filter(Boolean)) {
       stageFile(path, stageDir, staged);
       for (const algorithm of ['sha256', 'sha512']) stageFile(`${path}.${algorithm}`, stageDir, staged);
       const productInfoSibling = `${path}.product-info.json`;
@@ -380,6 +418,7 @@ export function verifyRelease({ product, artifactsDir, stageDir }) {
     artifacts: {
       zip: basename(artifacts.zip),
       exe: basename(artifacts.exe),
+      sources: sources ? basename(sources) : null,
     },
     checksums,
     staged: staged.map((path) => basename(path)),

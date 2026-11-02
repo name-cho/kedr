@@ -1,0 +1,29 @@
+stages:
+  - check
+  - release
+
+workflow:
+  rules:
+    - if: '$KEDR_CI_ENABLED != "true"'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG =~ /^v/'
+
+default:
+  image: node:22-bookworm
+  interruptible: true
+
+policy:
+  stage: check
+  timeout: 15m
+  script:
+    - node --test tools/kedr/*.test.mjs
+
+release-links:
+  stage: release
+  timeout: 15m
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v/'
+  script:
+    - node tools/kedr/check-release-links.mjs --tag "$CI_COMMIT_TAG"
