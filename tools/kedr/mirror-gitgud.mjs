@@ -93,11 +93,12 @@ async function gitgud(path, options = {}) {
   return apiFetch(`${GITGUD_API}${path}`, { ...options, token: options.token, header: 'PRIVATE-TOKEN' });
 }
 
-async function gitgudList(path, token) {
+async function gitgudList(path, token, { allow404 = false } = {}) {
   const items = [];
   for (let page = 1; ; page++) {
     const separator = path.includes('?') ? '&' : '?';
-    const batch = await gitgud(`${path}${separator}per_page=100&page=${page}`, { token });
+    const batch = await gitgud(`${path}${separator}per_page=100&page=${page}`, { token, allow404 });
+    if (batch === null && allow404 && page === 1) return [];
     if (!Array.isArray(batch)) throw new Error(`expected a list from ${path}`);
     items.push(...batch);
     if (batch.length < 100) break;
@@ -163,7 +164,7 @@ async function restoreBranchProtection(projectId, protection, token) {
 }
 
 async function protectedTag(projectId, tag, token) {
-  const tags = await gitgudList(`/projects/${projectId}/protected_tags`, token);
+  const tags = await gitgudList(`/projects/${projectId}/protected_tags`, token, { allow404: true });
   return tags.find((item) => item.name === tag) ?? null;
 }
 
@@ -207,16 +208,20 @@ async function syncProject(project, workDir, authDir, token, githubToken, userna
   const githubUrl = `https://github.com/${project.github}.git`;
   const authEnv = gitAuthEnv(authDir, username, token);
 
+  console.log(`[${project.gitgud}] read project`);
   const gitgudProject = await gitgud(`/projects/${encodeProjectPath(project.gitgud)}`, { token });
   const projectId = gitgudProject.id;
   if (gitgudProject.default_branch !== 'main') {
     await gitgud(`/projects/${projectId}`, { token, method: 'PUT', body: { default_branch: 'main' } });
   }
 
+  console.log(`[${project.gitgud}] clone GitHub`);
   runGit(['clone', '--mirror', githubUrl, sourceDir]);
+  console.log(`[${project.gitgud}] clone GitGud backup`);
   runGit(['clone', '--mirror', gitgudUrl, backupDir], { env: authEnv });
   const backupRefs = parseRefs(runGit(['-C', backupDir, 'show-ref']));
   writeFileSync(join(workDir, `gitgud-refs-${safeName}.json`), JSON.stringify(backupRefs, null, 2));
+  console.log(`[${project.gitgud}] create backup bundle`);
   runGit(['-C', backupDir, 'bundle', 'create', bundlePath, '--all']);
   runGit(['-C', backupDir, 'bundle', 'verify', bundlePath]);
 
@@ -224,6 +229,7 @@ async function syncProject(project, workDir, authDir, token, githubToken, userna
   const beforeBranches = await gitgudList(`/projects/${projectId}/repository/branches`, token);
   const beforeTags = await gitgudList(`/projects/${projectId}/repository/tags`, token);
   const deleteNames = branchesToDelete(beforeBranches);
+  console.log(`[${project.gitgud}] unprotect main`);
   const mainProtection = await deleteBranchProtection(projectId, 'main', token);
   const tagProtections = [];
   const deletedBranches = [];
@@ -237,9 +243,12 @@ async function syncProject(project, workDir, authDir, token, githubToken, userna
         tagProtections.push(protection);
       }
     }
+    console.log(`[${project.gitgud}] push main`);
     runGit(['-C', sourceDir, 'push', gitgudUrl, 'refs/heads/main:refs/heads/main', '--force'], { env: authEnv });
+    console.log(`[${project.gitgud}] push tags`);
     runGit(['-C', sourceDir, 'push', gitgudUrl, 'refs/tags/*:refs/tags/*', '--force'], { env: authEnv });
     for (const name of deleteNames) {
+      console.log(`[${project.gitgud}] delete branch ${name}`);
       await deleteBranchProtection(projectId, name, token);
       await gitgud(`/projects/${projectId}/repository/branches/${encodeURIComponent(name)}`, { token, method: 'DELETE' });
       deletedBranches.push(name);
@@ -255,7 +264,9 @@ async function syncProject(project, workDir, authDir, token, githubToken, userna
     }
   }
 
+  console.log(`[${project.gitgud}] sync releases`);
   const releases = await syncReleases(project, projectId, token, githubToken);
+  console.log(`[${project.gitgud}] verify refs and releases`);
   const afterBranches = await gitgudList(`/projects/${projectId}/repository/branches`, token);
   const afterTags = await gitgudList(`/projects/${projectId}/repository/tags`, token);
   const remoteRefs = parseRefs(runGit(['ls-remote', gitgudUrl], { env: authEnv }));
