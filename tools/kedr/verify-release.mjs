@@ -76,21 +76,22 @@ function parseZip64Extra(extra, entry) {
 }
 
 export class ZipArchive {
-  constructor(readAt, size, close = () => {}) {
+  constructor(readAt, size, close = () => {}, { allowDuplicates = false } = {}) {
     this.readAt = readAt;
     this.size = size;
     this.close = close;
+    this.allowDuplicates = allowDuplicates;
     this.entries = this.readCentralDirectory();
   }
 
-  static open(path) {
+  static open(path, options) {
     const fd = openSync(path, 'r');
     const size = statSync(path).size;
-    return new ZipArchive((offset, length) => readExact(fd, offset, length), size, () => closeSync(fd));
+    return new ZipArchive((offset, length) => readExact(fd, offset, length), size, () => closeSync(fd), options);
   }
 
-  static fromBuffer(buffer) {
-    return new ZipArchive((offset, length) => buffer.subarray(offset, offset + length), buffer.length);
+  static fromBuffer(buffer, options) {
+    return new ZipArchive((offset, length) => buffer.subarray(offset, offset + length), buffer.length, () => {}, options);
   }
 
   readCentralDirectory() {
@@ -133,6 +134,7 @@ export class ZipArchive {
     const central = this.readAt(centralOffset, centralSize);
     const entries = new Map();
     let offset = 0;
+    let duplicateCount = 0;
     for (let index = 0; index < count; index++) {
       if (offset + 46 > central.length) fail('truncated ZIP central directory');
       if (central.readUInt32LE(offset) !== CENTRAL_SIGNATURE) fail('invalid central directory entry');
@@ -152,11 +154,15 @@ export class ZipArchive {
       if (entryEnd > central.length) fail('truncated ZIP central directory entry');
       const name = central.subarray(nameStart, nameStart + nameLength).toString(flags & 0x800 ? 'utf8' : 'latin1');
       parseZip64Extra(central.subarray(nameStart + nameLength, nameStart + nameLength + extraLength), entry);
-      if (entries.has(name)) fail(`duplicate ZIP entry: ${name}`);
+      if (entries.has(name)) {
+        if (!this.allowDuplicates) fail(`duplicate ZIP entry: ${name}`);
+        duplicateCount++;
+      }
       entries.set(name, entry);
       offset = entryEnd;
     }
     if (offset !== central.length) fail('ZIP central directory size mismatch');
+    this.duplicateCount = duplicateCount;
     return entries;
   }
 
@@ -372,7 +378,7 @@ export function verifyRelease({ product, artifactsDir, stageDir }) {
   const sources = findSourcesArchive(artifactsDir, artifacts.stem);
   if (sources) {
     checksums.sources = verifyChecksumsAfterWrite(sources);
-    const archive = ZipArchive.open(sources);
+    const archive = ZipArchive.open(sources, { allowDuplicates: true });
     try {
       if (archive.entries.size === 0) fail('sources archive is empty');
       for (const name of archive.entries.keys()) assertSafeEntryName(name);

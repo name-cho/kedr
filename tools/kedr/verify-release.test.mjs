@@ -229,6 +229,41 @@ test('a wrong sources checksum is rejected', () => {
   });
 });
 
+function repeatFirstEntry(zip) {
+  const eocdOffset = zip.length - 22;
+  const centralOffset = zip.readUInt32LE(eocdOffset + 16);
+  const centralSize = zip.readUInt32LE(eocdOffset + 12);
+  const recordLength = 46 + zip.readUInt16LE(centralOffset + 28)
+    + zip.readUInt16LE(centralOffset + 30) + zip.readUInt16LE(centralOffset + 32);
+  const eocd = Buffer.from(zip.subarray(eocdOffset));
+  eocd.writeUInt16LE(2, 8);
+  eocd.writeUInt16LE(2, 10);
+  eocd.writeUInt32LE(centralSize + recordLength, 12);
+  return Buffer.concat([
+    zip.subarray(0, eocdOffset),
+    zip.subarray(centralOffset, centralOffset + recordLength),
+    eocd,
+  ]);
+}
+
+test('a sources archive may repeat a path across modules', () => {
+  withTemp((directory) => {
+    const stem = writeArtifacts(directory, 'python');
+    const sourceZip = repeatFirstEntry(makeZip({ 'a/package-info.java': 'package a;\n' }));
+    writeFileSync(join(directory, `${stem}-sources.zip`), sourceZip);
+    const result = verifyRelease({ product: 'python', artifactsDir: directory });
+    assert.equal(result.artifacts.sources, `${stem}-sources.zip`);
+  });
+});
+
+test('duplicate entries stay fatal unless the caller allows them', () => {
+  const doubled = repeatFirstEntry(makeZip({ 'a.txt': 'hello' }));
+  assert.throws(() => ZipArchive.fromBuffer(doubled), /duplicate ZIP entry/);
+  const archive = ZipArchive.fromBuffer(doubled, { allowDuplicates: true });
+  assert.equal(archive.duplicateCount, 1);
+  assert.equal(archive.readEntry('a.txt').toString(), 'hello');
+});
+
 test('missing installer fails verification', () => {
   withTemp((directory) => {
     writeArtifacts(directory, 'studio', { missingExe: true });
