@@ -44,6 +44,14 @@ Add or update tests when behavior changes. New test code should be Kotlin and us
 - Do not add explanatory comments or KDoc unless they are required by an API contract; prefer clear names and small functions.
 - Keep upstream copyright headers intact. New Kedr files use the Kedr Project header.
 
+## Branches
+
+`main` is the only long-lived branch. It contains both Kedr Studio and Kedr Python.
+Send changes through short-lived pull request branches. Delete the branch after the merge.
+Do not recreate `kedr-publish` or a separate product branch.
+Branch cleanup must keep tags and published releases.
+See [docs/repositories.md](docs/repositories.md) for the mirror rules.
+
 ## Pull requests
 
 Describe what changed, why, and how you tested it. Link the relevant issue. If a change affects packaging or release behavior, include the output of `tools/kedr/verify-release.mjs` or explain why it could not be run locally.

@@ -11,7 +11,7 @@ Every artifact has `.sha256` and `.sha512` sidecars. The release also includes a
 
 ## Cutting a release
 
-1. Merge both product changes into `main` through a pull request. Do not merge the old 2026.2 tree over the 2026.3 tree.
+1. Merge both product changes into `main` through a pull request. Do not merge the old 2026.2 tree over the 2026.3 tree. Follow the branch rules in [repositories.md](repositories.md).
 2. Make sure `main` is green and the version/build number in the product descriptors is correct.
 3. Add Russian release notes at `docs/releases/<tag>.md`. Describe both products, the platform version, known limits and checksum verification.
 4. Create and push a tag from `main`:

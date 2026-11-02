@@ -118,7 +118,8 @@ internal fun renderReport(
   appendLine().appendLine("This archive was saved locally. Review it before sharing; it may contain personal data.")
 }
 
-internal fun writeReport(
+@ApiStatus.Internal
+fun writeReport(
   path: Path,
   events: Array<IdeaLoggingEvent>,
   additionalInfo: String?,
