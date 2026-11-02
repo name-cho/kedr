@@ -1,4 +1,4 @@
-﻿# Kedr
+# Kedr
 
 Free, fully open-source desktop IDEs for Windows, built from the IntelliJ Platform
 source code:
@@ -13,6 +13,13 @@ either product: everything the upstream open-source build can do is available
 without an account. Third-party Marketplace plugins keep their own licensing.
 
 [README-upstream.md](README-upstream.md) keeps the original upstream build notes.
+
+## Repositories
+
+- GitHub: [name-cho/kedr](https://github.com/name-cho/kedr) holds the source for both products.
+- GitHub: [name-cho/kedr-python](https://github.com/name-cho/kedr-python) holds Python product docs and releases.
+- GitGud: [name-cho/kedr](https://gitgud.io/name-cho/kedr) and [name-cho/kedr-python](https://gitgud.io/name-cho/kedr-python) mirror the same projects.
+- `main` is the only long-lived branch. Do not use `kedr-publish` or separate product branches.
 
 ## Products
 
@@ -117,7 +124,8 @@ GitHub release containing both products and a combined `SHA256SUMS` file.
 `.github/workflows/kedr-checks.yml` runs the repository checks on pushes and pull
 requests.
 
-See [docs/release.md](docs/release.md) for the release process and
+See [docs/release.md](docs/release.md) for the release process,
+[docs/repositories.md](docs/repositories.md) for the repository layout, and
 [docs/troubleshooting.md](docs/troubleshooting.md) for common problems.
 
 ## License
