@@ -154,7 +154,7 @@ function runCommand(command, args) {
   return result.stdout;
 }
 
-async function createDeployKey(projectId, token, directory, name) {
+async function createDeployKey(projectId, token, directory, name, sshHost) {
   const keyPath = join(directory, `id_ed25519_${name}`);
   const knownHostsPath = join(directory, `known_hosts_${name}`);
   runCommand('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', keyPath, '-C', `kedr-mirror-${name}`]);
@@ -165,7 +165,7 @@ async function createDeployKey(projectId, token, directory, name) {
     body: { title: `kedr-mirror-${name}-${Date.now()}`, key: publicKey, can_push: true },
   });
   try {
-    const knownHosts = runCommand('ssh-keyscan', ['-T', '10', 'gitgud.io']);
+    const knownHosts = runCommand('ssh-keyscan', ['-T', '10', sshHost]);
     if (!knownHosts.trim()) throw new Error('ssh-keyscan returned no host keys');
     writeFileSync(knownHostsPath, knownHosts);
   } catch (error) {
@@ -273,9 +273,10 @@ async function syncProject(project, workDir, authDir, token, githubToken, userna
   const beforeBranches = await gitgudList(`/projects/${projectId}/repository/branches`, token);
   const beforeTags = await gitgudList(`/projects/${projectId}/repository/tags`, token);
   const deleteNames = branchesToDelete(beforeBranches);
+  const sshUrl = gitgudProject.ssh_url_to_repo || `git@ssh.gitgud.io:${project.gitgud}.git`;
+  const sshHost = sshUrl.replace(/^git@/, '').split(':')[0];
   console.log(`[${project.gitgud}] create temporary deploy key`);
-  const deployKey = await createDeployKey(projectId, token, authDir, safeName);
-  const sshUrl = `git@gitgud.io:${project.gitgud}.git`;
+  const deployKey = await createDeployKey(projectId, token, authDir, safeName, sshHost);
   const tagProtections = [];
   const deletedBranches = [];
   let mainProtection = null;
