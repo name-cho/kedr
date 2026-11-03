@@ -29,6 +29,15 @@ export function missingAssetLinks(existingLinks, assets) {
   return assets.filter((asset) => !known.has(asset.browser_download_url));
 }
 
+export function runnerSummary(runners) {
+  const list = Array.isArray(runners) ? runners : [];
+  const online = list.filter((runner) => runner.status === 'online' || runner.online === true);
+  const tags = [...new Set(list.flatMap((runner) => runner.tag_list ?? []))].sort();
+  const windows = list.filter((runner) => (runner.tag_list ?? []).some((tag) => /win/i.test(tag))
+    || /win/i.test(runner.description ?? '') || /win/i.test(runner.name ?? ''));
+  return { total: list.length, online: online.length, windows: windows.length, tags };
+}
+
 export function protectedBranchPayload(protection) {
   const level = (levels, fallback) => levels?.[0]?.access_level ?? fallback;
   return {
@@ -212,6 +221,20 @@ async function protectedTag(projectId, tag, token) {
   return tags.find((item) => item.name === tag) ?? null;
 }
 
+async function probeRunners(project, projectId, token) {
+  try {
+    const runners = await gitgudList(`/projects/${projectId}/runners`, token, { allow404: true });
+    const summary = runnerSummary(runners);
+    console.log(`[${project.gitgud}] runners: ${summary.total} total, ${summary.online} online, ${summary.windows} windows`);
+    if (summary.tags.length > 0) console.log(`[${project.gitgud}] runner tags: ${summary.tags.join(', ')}`);
+    if (summary.total === 0) console.log(`[${project.gitgud}] no CI runner is assigned; Windows builds stay on GitHub Actions`);
+    return summary;
+  } catch (error) {
+    console.log(`[${project.gitgud}] runner access is not granted: ${redact(error.message, token)}`);
+    return { total: 0, online: 0, windows: 0, tags: [], error: 'unavailable' };
+  }
+}
+
 async function syncReleases(project, projectId, token, githubToken) {
   const releases = await githubList(`/repos/${project.github}/releases`, githubToken);
   const mirrored = [];
@@ -317,6 +340,7 @@ async function syncProject(project, workDir, authDir, token, githubToken, userna
     }
   }
 
+  const runners = await probeRunners(project, projectId, token);
   console.log(`[${project.gitgud}] sync releases`);
   const releases = await syncReleases(project, projectId, token, githubToken);
   console.log(`[${project.gitgud}] verify refs and releases`);
@@ -344,6 +368,7 @@ async function syncProject(project, workDir, authDir, token, githubToken, userna
     github: project.github,
     main: { before: backupRefs['refs/heads/main'] ?? null, after: sourceRefs['refs/heads/main'] },
     deletedBranches,
+    runners,
     tags: { before: beforeTags.map((tag) => tag.name), after: afterTags.map((tag) => tag.name) },
     releases,
     backupBundle: bundlePath,
