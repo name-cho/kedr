@@ -6,7 +6,27 @@ import {
   missingAssetLinks,
   protectedBranchPayload,
   releaseDescription,
+  runnerSummary,
 } from './mirror-gitgud.mjs';
+
+test('runner summary counts online and Windows runners', () => {
+  const summary = runnerSummary([
+    { status: 'online', tag_list: ['linux', 'docker'], description: 'shared-linux-1' },
+    { status: 'offline', tag_list: ['windows', 'shell'], description: 'win-2022' },
+    { online: true, tag_list: ['linux'], name: 'shared-linux-2' },
+  ]);
+  assert.deepEqual(summary, { total: 3, online: 2, windows: 1, tags: ['docker', 'linux', 'shell', 'windows'] });
+});
+
+test('runner summary handles a project without runners', () => {
+  assert.deepEqual(runnerSummary([]), { total: 0, online: 0, windows: 0, tags: [] });
+  assert.deepEqual(runnerSummary(null), { total: 0, online: 0, windows: 0, tags: [] });
+});
+
+test('runner summary detects Windows by description', () => {
+  const summary = runnerSummary([{ status: 'online', tag_list: [], description: 'Windows Server 2022' }]);
+  assert.equal(summary.windows, 1);
+});
 
 test('project paths are encoded for the GitLab API', () => {
   assert.equal(encodeProjectPath('name-cho/kedr'), 'name-cho%2Fkedr');
