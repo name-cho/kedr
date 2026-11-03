@@ -11,6 +11,7 @@ import com.kedr.golang.GoModuleFileType
 import com.kedr.golang.GoNewProjectWizard
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -26,14 +27,14 @@ internal class GoIconsTest {
   @Test
   fun newProjectWizardShowsTheGoIcon() {
     val wizard = LanguageGeneratorNewProjectWizard.EP_NAME.extensionList.first { it.name == "Go" }
-    assertEquals(GoNewProjectWizard::class.java, wizard.javaClass)
+    assertIs<GoNewProjectWizard>(wizard)
     assertSame(AllIcons.Language.GO, wizard.icon)
   }
 
   @Test
   fun moduleFilesAreRecognisedByName() {
     val fileTypes = FileTypeManager.getInstance()
-    for (name in listOf("go.mod", "go.sum", "go.work")) {
+    for (name in listOf("go.mod", "go.sum", "go.work", "go.work.sum")) {
       assertEquals(GoModuleFileType.INSTANCE, fileTypes.getFileTypeByFileName(name), name)
     }
     assertSame(AllIcons.Language.GO, GoModuleFileType.INSTANCE.icon)

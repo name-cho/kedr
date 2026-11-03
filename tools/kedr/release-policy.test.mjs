@@ -158,7 +158,7 @@ test('Go files and the New Project wizard use the platform Go icon', () => {
     assert.ok(read(path).includes('AllIcons.Language.GO'), `${path} must use the platform Go icon`);
   }
   const descriptor = read('plugins/go/resources/META-INF/plugin.xml');
-  assert.match(descriptor, /fileType name="Go Module" fileNames="go\.mod;go\.sum;go\.work"/);
+  assert.match(descriptor, /fileType name="Go Module" fileNames="go\.mod;go\.sum;go\.work;go\.work\.sum"/);
   const icons = read('platform/util/ui/src/com/intellij/icons/AllIcons.java');
   assert.match(icons, /Icon GO = load\("language\/go\.svg"/);
   const test = read('plugins/textmate/tests/tests/org/jetbrains/plugins/textmate/language/syntax/lexer/GoIconsTest.kt');

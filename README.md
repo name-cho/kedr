@@ -56,7 +56,7 @@ Artifacts are produced in `out/kedr-studio/artifacts` and `out/kedr-python/artif
 - **Kedr Studio bundles Python and Go support.** Go has TextMate syntax highlighting
   out of the box; completion, diagnostics, navigation and formatting are available
   through `gopls` when it is installed on `PATH`. Go carries the platform Go icon in
-  the New Project wizard, for `.go` files and for `go.mod`, `go.sum` and `go.work`.
+  the New Project wizard, for `.go` files and for `go.mod`, `go.sum`, `go.work` and `go.work.sum`.
   Python support is bundled as well.
 - **Russian language pack is bundled** in both products (`su.rus.language-pack`,
   MIT). The UI starts in English; the pack is offered on first start and can be
