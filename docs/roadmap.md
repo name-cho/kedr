@@ -14,13 +14,14 @@ Target platform: **Windows x64**. macOS and Linux are out of scope until someone
 ## M1 — Rebrand to Kedr
 
 - [x] Product descriptors: `IdeaApplicationInfo.xml`, `PyCharmCoreApplicationInfo.xml`
+- [x] Drop the `RC` version suffix for the stable 1.2 release in both products
 - [x] Product properties: `IdeaCommunityProperties.kt`, `PyCharmCommunityProperties.kt`
 - [x] Settings/system dirs: `KedrStudio2026.3`, `KedrPython2026.3` (no shared state with real JetBrains IDEs)
 - [x] Icons, splash, installer bitmaps, window title
 - [x] About dialog: own copyright record plus a "Based on the IntelliJ Platform by JetBrains" line
   (verified at runtime in both products)
 - [x] Portable Windows ZIP for both products; the 2026.2 builds launched from extracted folders
-- [ ] Verify the 2026.3 RC ZIPs and installers in Windows CI
+- [x] Verify the 2026.3 ZIPs and installers in Windows CI
 - [x] Keep `bin/idea64.exe` / `bin/pycharm64.exe` and upstream product codes `IC`/`PC` so Marketplace plugin compatibility keeps working
 
 ## M2 — Remove subscription and upsell UI
@@ -57,9 +58,10 @@ core, the type engine, Jupyter (via the notebook modules), pytest/unittest and t
 - [x] Keep Go in the universal-editor scope, including installer file associations
 - [x] Bundle the Go TextMate grammar for syntax highlighting without an external language server
 - [x] Provide the Kedr Go plugin and New Project wizard
+- [x] Show the platform Go icon in the wizard, for `.go` files and for `go.mod`, `go.sum`, `go.work`, `go.work.sum`
 - [x] Connect `gopls` through the open LSP client when it is available on `PATH`
 - [ ] Add Go toolchain discovery beyond `PATH` and run configurations for `go run`, `go test`, `go build`
-- [ ] Verify highlighting, `go.mod`/`go.sum` handling and the optional LSP integration in Windows release smoke tests
+- [ ] Verify highlighting and the optional LSP integration in Windows release smoke tests
 
 ## M5 — Russian localisation
 

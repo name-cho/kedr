@@ -50,6 +50,11 @@ zout.close(); zin.close()
 
 ## What is bundled upstream and already works
 
-The community Python plugin already contains `ruff`, `uv`, `pyright`, `pyrefly`, `ty`, the LSP core,
-the type engine, Jupyter modules, pytest/unittest and the pydevd debugger. `mypy` is not part of it —
-upstream dropped it in favour of ty/pyright/pyrefly.
+The community Python plugin already contains `ruff`, `uv`, `pyright`, `pyrefly`, `ty`, `zuban`,
+the LSP core, the type engine, Jupyter modules, pytest/unittest and the pydevd debugger.
+
+`mypy` is bundled as well: `PythonCore` declares `intellij.python.mypy.common` and
+`intellij.python.mypy.frontend`, backed by `python/python-mypy`. Earlier revisions of this document
+claimed upstream had dropped it in favour of ty/pyright/pyrefly; that was true for 2026.2 and is not
+true for 2026.3. The integration registers a `pyTool`, so the IDE drives `mypy` but the `mypy` package
+itself still has to be installed in the selected interpreter, exactly like `ruff` or `black`.

@@ -147,7 +147,79 @@ test('Studio bundles Go highlighting independently of gopls', () => {
   assert.ok(read('tools/kedr/verify-release.mjs').includes('verifyGoHighlighting(zip, prefix)'));
   assert.ok(read('tools/kedr/smoke-release.ps1').includes("'com.kedr.go'"));
   assert.ok(read('plugins/textmate/tests/tests/org/jetbrains/plugins/textmate/language/syntax/lexer/GoHighlightingWiringTest.kt').includes('TextMateEditorHighlighterProvider'));
+});
+
+test('stable releases carry no RC or EAP version marker', () => {
+  for (const path of [
+    'community-resources/resources/idea/IdeaApplicationInfo.xml',
+    'python/ide-common/resources/idea/PyCharmCoreApplicationInfo.xml',
+  ]) {
+    const version = read(path).match(/<version\b[^>]*\/>/)?.[0];
+    assert.ok(version, `${path} must declare a version`);
+    assert.ok(!/\bsuffix=/.test(version), `${path} must not label the stable release: ${version}`);
+    assert.match(version, /eap="false"/);
+  }
+  const workflow = read('.github/workflows/kedr-windows.yml');
+  assert.match(workflow, /flags\+=\(--prerelease --latest=false\)/);
+  assert.match(workflow, /== \*-\* \]\]/);
+});
+
+test('Go files and the New Project wizard use the platform Go icon', () => {
+  for (const path of [
+    'plugins/go/src/com/kedr/golang/GoFileType.kt',
+    'plugins/go/src/com/kedr/golang/GoModuleFileType.kt',
+    'plugins/go/src/com/kedr/golang/GoNewProjectWizard.kt',
+  ]) {
+    assert.ok(read(path).includes('AllIcons.Language.GO'), `${path} must use the platform Go icon`);
+  }
+  const descriptor = read('plugins/go/resources/META-INF/plugin.xml');
+  assert.match(descriptor, /fileType name="Go Module" fileNames="go\.mod;go\.sum;go\.work;go\.work\.sum"/);
+  const icons = read('platform/util/ui/src/com/intellij/icons/AllIcons.java');
+  assert.match(icons, /Icon GO = load\("language\/go\.svg"/);
+  const test = read('plugins/textmate/tests/tests/org/jetbrains/plugins/textmate/language/syntax/lexer/GoIconsTest.kt');
+  assert.ok(test.includes('newProjectWizardShowsTheGoIcon'));
+  assert.ok(test.includes('moduleFilesAreRecognisedByName'));
   assert.ok(read('.github/workflows/kedr-windows-build.yml').includes('//plugins/textmate/tests:tests_test'));
+});
+
+test('Go icon code declares the modules that own its imports', () => {
+  const cases = [
+    {
+      build: 'plugins/go/BUILD.bazel',
+      iml: 'plugins/go/intellij.go.iml',
+      sources: {
+        'plugins/go/src/com/kedr/golang/GoModuleFileType.kt': {
+          'com.intellij.openapi.fileTypes.PlainTextLanguage': '//platform/core-impl',
+          'com.intellij.icons.AllIcons': '//platform/util:util-ui',
+        },
+        'plugins/go/src/com/kedr/golang/GoNewProjectWizard.kt': {
+          'com.intellij.ide.wizard.language.LanguageGeneratorNewProjectWizard': '//platform/platform-impl:ide-impl',
+        },
+      },
+    },
+    {
+      build: 'plugins/textmate/tests/BUILD.bazel',
+      iml: 'plugins/textmate/tests/intellij.textmate.tests.iml',
+      sources: {
+        'plugins/textmate/tests/tests/org/jetbrains/plugins/textmate/language/syntax/lexer/GoIconsTest.kt': {
+          'com.intellij.openapi.fileTypes.PlainTextLanguage': '//platform/core-impl',
+          'com.intellij.icons.AllIcons': '//platform/util:util-ui',
+          'com.intellij.ide.wizard.language.LanguageGeneratorNewProjectWizard': '//platform/platform-impl:ide-impl',
+        },
+      },
+    },
+  ];
+  for (const { build, iml, sources } of cases) {
+    const declared = read(build);
+    for (const [path, imports] of Object.entries(sources)) {
+      const source = read(path);
+      for (const [symbol, dependency] of Object.entries(imports)) {
+        assert.ok(source.includes(`import ${symbol}`), `${path} must import ${symbol}`);
+        assert.ok(declared.includes(`"${dependency}"`), `${build} must depend on ${dependency} for ${symbol}`);
+      }
+    }
+    assert.ok(read(iml).includes('intellij.platform.core.impl'), `${iml} must list the core.impl module`);
+  }
 });
 
 test('project contacts point to Kedr', () => {
