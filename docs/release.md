@@ -7,7 +7,7 @@ Kedr releases are built on GitHub Actions for Windows x64. Each release contains
 | Kedr Studio | `kedr-studio-<build>.win.zip` | `kedr-studio-<build>.exe` |
 | Kedr Python | `kedr-python-<build>.win.zip` | `kedr-python-<build>.exe` |
 
-Every artifact has `.sha256` and `.sha512` sidecars. The release also includes combined `SHA256SUMS` and `SHA512SUMS` files. Each product adds a `-sources.zip` archive with the same sidecars. Installers are unsigned; see [troubleshooting.md](troubleshooting.md) for SmartScreen behavior.
+Every artifact has `.sha256` and `.sha512` sidecars. The release also includes combined `SHA256SUMS` and `SHA512SUMS` files. Kedr Python adds a `-sources.zip` archive with the same sidecars; the Studio build does not produce one. Installers are unsigned; see [troubleshooting.md](troubleshooting.md) for SmartScreen behavior.
 
 Only GitHub Actions builds release artifacts. A local build is a development check, not a release path.
 
@@ -33,7 +33,9 @@ Only GitHub Actions builds release artifacts. A local build is a development che
    - runs `tools/kedr/smoke-release.ps1` to extract the ZIP, list bundled plugins, format a sample file, install silently, list plugins from the installed copy, and uninstall;
    - stages only release assets and prints their sizes to the job summary.
 8. The release job verifies all sidecars, writes `SHA256SUMS` and `SHA512SUMS`, reads `docs/releases/<tag>.md`, and creates a **draft** GitHub release.
-9. Review the draft and its Windows build logs, then publish it manually. Tags with a suffix such as `-rc.1` are marked as pre-releases and are not marked as latest.
+9. Review the draft and its Windows build logs, then publish it manually. Tags with a suffix such as `-rc.1` are marked as pre-releases and are not marked as latest. A plain tag such as `v1.2.0` is published as a normal release and becomes the latest one.
+
+A stable release must also drop the version marker in `IdeaApplicationInfo.xml` and `PyCharmCoreApplicationInfo.xml`: no `suffix` attribute and `eap="false"`. Otherwise About still calls the build a release candidate. The policy tests check this.
 
 The `Mirror to GitGud` workflow then copies the tag and the release page to GitGud. GitGud release pages link to the GitHub assets.
 
