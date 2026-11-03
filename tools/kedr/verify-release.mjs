@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -24,7 +25,7 @@ export const PRODUCTS = {
     name: 'Kedr Python',
     dataDirectoryPrefix: 'KedrPython',
     launcher: 'bin/pycharm64.exe',
-    requiredPlugins: ['PythonCore', 'com.jetbrains.pycharm.community.customization', 'su.rus.language-pack'],
+    requiredPlugins: ['PythonCore', 'com.jetbrains.pycharm.community.customization', 'com.kedr.go', 'su.rus.language-pack'],
   },
 };
 
@@ -75,21 +76,22 @@ function parseZip64Extra(extra, entry) {
 }
 
 export class ZipArchive {
-  constructor(readAt, size, close = () => {}) {
+  constructor(readAt, size, close = () => {}, { allowDuplicates = false } = {}) {
     this.readAt = readAt;
     this.size = size;
     this.close = close;
+    this.allowDuplicates = allowDuplicates;
     this.entries = this.readCentralDirectory();
   }
 
-  static open(path) {
+  static open(path, options) {
     const fd = openSync(path, 'r');
     const size = statSync(path).size;
-    return new ZipArchive((offset, length) => readExact(fd, offset, length), size, () => closeSync(fd));
+    return new ZipArchive((offset, length) => readExact(fd, offset, length), size, () => closeSync(fd), options);
   }
 
-  static fromBuffer(buffer) {
-    return new ZipArchive((offset, length) => buffer.subarray(offset, offset + length), buffer.length);
+  static fromBuffer(buffer, options) {
+    return new ZipArchive((offset, length) => buffer.subarray(offset, offset + length), buffer.length, () => {}, options);
   }
 
   readCentralDirectory() {
@@ -132,6 +134,7 @@ export class ZipArchive {
     const central = this.readAt(centralOffset, centralSize);
     const entries = new Map();
     let offset = 0;
+    let duplicateCount = 0;
     for (let index = 0; index < count; index++) {
       if (offset + 46 > central.length) fail('truncated ZIP central directory');
       if (central.readUInt32LE(offset) !== CENTRAL_SIGNATURE) fail('invalid central directory entry');
@@ -151,11 +154,15 @@ export class ZipArchive {
       if (entryEnd > central.length) fail('truncated ZIP central directory entry');
       const name = central.subarray(nameStart, nameStart + nameLength).toString(flags & 0x800 ? 'utf8' : 'latin1');
       parseZip64Extra(central.subarray(nameStart + nameLength, nameStart + nameLength + extraLength), entry);
-      if (entries.has(name)) fail(`duplicate ZIP entry: ${name}`);
+      if (entries.has(name)) {
+        if (!this.allowDuplicates) fail(`duplicate ZIP entry: ${name}`);
+        duplicateCount++;
+      }
       entries.set(name, entry);
       offset = entryEnd;
     }
     if (offset !== central.length) fail('ZIP central directory size mismatch');
+    this.duplicateCount = duplicateCount;
     return entries;
   }
 
@@ -220,6 +227,11 @@ export function verifyChecksums(path) {
     result[algorithm] = actual;
   }
   return result;
+}
+
+export function verifyChecksumsAfterWrite(path) {
+  writeChecksumSidecars(path);
+  return verifyChecksums(path);
 }
 
 export function findReleaseArtifacts(directory, product) {
@@ -336,6 +348,25 @@ function stageFile(source, stageDir, staged) {
   staged.push(target);
 }
 
+export function writeChecksumSidecars(path) {
+  for (const algorithm of ['sha256', 'sha512']) {
+    const sidecar = `${path}.${algorithm}`;
+    const digest = hashFile(path, algorithm);
+    if (existsSync(sidecar)) {
+      const existing = parseChecksum(readFileSync(sidecar, 'utf8'), basename(path), algorithm);
+      if (existing !== digest) fail(`${algorithm} mismatch for ${basename(path)}`);
+    }
+    else {
+      writeFileSync(sidecar, `${digest} *${basename(path)}\n`);
+    }
+  }
+}
+
+export function findSourcesArchive(directory, stem) {
+  const name = `${stem}-sources.zip`;
+  return existsSync(join(directory, name)) ? join(directory, name) : null;
+}
+
 export function verifyRelease({ product, artifactsDir, stageDir }) {
   const artifacts = findReleaseArtifacts(artifactsDir, product);
   const checksums = {
@@ -343,6 +374,19 @@ export function verifyRelease({ product, artifactsDir, stageDir }) {
     exe: verifyChecksums(artifacts.exe),
   };
   verifyPortableExecutable(artifacts.exe);
+
+  const sources = findSourcesArchive(artifactsDir, artifacts.stem);
+  if (sources) {
+    checksums.sources = verifyChecksumsAfterWrite(sources);
+    const archive = ZipArchive.open(sources, { allowDuplicates: true });
+    try {
+      if (archive.entries.size === 0) fail('sources archive is empty');
+      for (const name of archive.entries.keys()) assertSafeEntryName(name);
+    }
+    finally {
+      archive.close();
+    }
+  }
 
   const zip = ZipArchive.open(artifacts.zip);
   let buildNumber;
@@ -366,7 +410,7 @@ export function verifyRelease({ product, artifactsDir, stageDir }) {
   const staged = [];
   if (stageDir) {
     mkdirSync(stageDir, { recursive: true });
-    for (const path of [artifacts.zip, artifacts.exe]) {
+    for (const path of [artifacts.zip, artifacts.exe, sources].filter(Boolean)) {
       stageFile(path, stageDir, staged);
       for (const algorithm of ['sha256', 'sha512']) stageFile(`${path}.${algorithm}`, stageDir, staged);
       const productInfoSibling = `${path}.product-info.json`;
@@ -380,6 +424,7 @@ export function verifyRelease({ product, artifactsDir, stageDir }) {
     artifacts: {
       zip: basename(artifacts.zip),
       exe: basename(artifacts.exe),
+      sources: sources ? basename(sources) : null,
     },
     checksums,
     staged: staged.map((path) => basename(path)),

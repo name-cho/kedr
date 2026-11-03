@@ -18,7 +18,7 @@ env:
 jobs:
   build:
     runs-on: windows-2022
-    timeout-minutes: 240
+    timeout-minutes: 350
     defaults:
       run:
         shell: pwsh
@@ -45,6 +45,14 @@ jobs:
             throw "unsupported product: $env:PRODUCT"
           }
 
+      - name: Report runner capacity
+        run: |
+          Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" |
+            Select-Object DeviceID, @{n = 'FreeGB'; e = { [math]::Round($_.FreeSpace / 1GB, 1) } },
+              @{n = 'SizeGB'; e = { [math]::Round($_.Size / 1GB, 1) } } |
+            Format-Table | Out-String | Write-Output
+          "processors: $env:NUMBER_OF_PROCESSORS" | Write-Output
+
       - name: Checkout Android modules
         run: |
           git init android
@@ -64,9 +72,16 @@ jobs:
             "startup:windows --output_user_root=$root"
             "startup --host_jvm_args=-Djava.net.preferIPv4Stack=true"
             "startup:windows --host_jvm_args=-Djava.net.preferIPv4Stack=true"
+            "startup --host_jvm_args=-Xmx4g"
             "common --disk_cache=$root/cache"
             "common --repository_cache=$root/repository"
+            "common --experimental_disk_cache_gc_max_size=5G"
             "common --config=ci"
+            "build --jobs=4"
+            "build --worker_max_multiplex_instances=JvmCompile=2"
+            "build --local_resources=memory=HOST_RAM*.65"
+            "build --verbose_failures"
+            "test --test_output=errors"
           ) | Set-Content -Encoding ascii -Path "$env:USERPROFILE\.bazelrc"
 
       - name: Cache Bazel
@@ -76,20 +91,24 @@ jobs:
             D:/bazelroot/cache
             D:/bazelroot/repository
             D:/bazelroot/install
-          key: kedr-bazel-${{ hashFiles('MODULE.bazel.lock', 'MODULE.bazel', '.bazelversion', '.bazeliskversion') }}
+          key: kedr-bazel-${{ inputs.product }}-${{ hashFiles('MODULE.bazel.lock', 'MODULE.bazel', '.bazelversion', '.bazeliskversion') }}
           restore-keys: |
+            kedr-bazel-${{ inputs.product }}-
             kedr-bazel-
 
       - name: Test local reporting and Go grammar
         if: inputs.product == 'studio'
         run: |
+          $platformTests = '//platform/platform-tests:tests_test'
           $tests = @(
-            @{ Target = '//platform/platform-tests:tests_test'; Filter = 'com.intellij.diagnostic.KedrErrorReportSubmitterTest'; Log = 'tests-reporting.log' },
-            @{ Target = '//platform/platform-tests:tests_test'; Filter = 'com.intellij.ide.plugins.advertiser.KedrCommercialSuggestionPolicyTest'; Log = 'tests-suggestions.log' },
-            @{ Target = '//plugins/textmate/tests:tests_test'; Filter = 'org.jetbrains.plugins.textmate.language.syntax.lexer.Go'; Log = 'tests-go.log' }
+            @{ Target = $platformTests; Filter = 'com.intellij.diagnostic.KedrErrorReportSubmitterTest'; Log = 'tests-reporting.log' },
+            @{ Target = $platformTests; Filter = 'com.intellij.ide.plugins.advertiser.KedrCommercialSuggestionPolicyTest';
+               Log = 'tests-suggestions.log' },
+            @{ Target = '//plugins/textmate/tests:tests_test'; Filter = 'org.jetbrains.plugins.textmate.language.syntax.lexer.Go';
+               Log = 'tests-go.log' }
           )
           foreach ($test in $tests) {
-            cmd /c "bazel.cmd test $($test.Target) --test_filter=$($test.Filter) --test_output=errors > $($test.Log) 2>&1"
+            cmd /c "bazel.cmd test $($test.Target) --test_filter=$($test.Filter) --keep_going > $($test.Log) 2>&1"
             if ($LASTEXITCODE -ne 0) {
               $tail = Get-Content $test.Log -Tail 180
               $tail
@@ -107,7 +126,11 @@ jobs:
           $buildArgs = '-Dintellij.build.target.os=current -Dintellij.build.target.arch=x64'
           cmd /c "$entry $buildArgs > $log 2>&1"
           if ($LASTEXITCODE -ne 0) {
-            Get-Content $log -Tail 200
+            $tail = Get-Content $log -Tail 200
+            $tail
+            "## Build failure: $env:PRODUCT`n``````" | Add-Content $env:GITHUB_STEP_SUMMARY
+            $tail | Add-Content $env:GITHUB_STEP_SUMMARY
+            '```' | Add-Content $env:GITHUB_STEP_SUMMARY
             throw "build failed with exit code $LASTEXITCODE"
           }
 
@@ -125,6 +148,21 @@ jobs:
         run: |
           $dir = "out/kedr-$env:PRODUCT/artifacts"
           ./tools/kedr/smoke-release.ps1 -Product $env:PRODUCT -ArtifactsDir $dir -WorkDir "D:/kedr-smoke-$env:PRODUCT"
+
+      - name: Publish artifact summary
+        if: always()
+        run: |
+          $stage = "out/kedr-$env:PRODUCT/release"
+          "## Kedr $env:PRODUCT artifacts" | Add-Content $env:GITHUB_STEP_SUMMARY
+          if (Test-Path $stage) {
+            '| File | Bytes |' | Add-Content $env:GITHUB_STEP_SUMMARY
+            '| --- | --- |' | Add-Content $env:GITHUB_STEP_SUMMARY
+            Get-ChildItem $stage -File | ForEach-Object {
+              "| $($_.Name) | $($_.Length) |" | Add-Content $env:GITHUB_STEP_SUMMARY
+            }
+          } else {
+            'No staged artifacts.' | Add-Content $env:GITHUB_STEP_SUMMARY
+          }
 
       - name: Upload log
         if: always()
@@ -145,3 +183,4 @@ jobs:
           path: out/kedr-${{ inputs.product }}/release/*
           if-no-files-found: error
           retention-days: 14
+          compression-level: 0

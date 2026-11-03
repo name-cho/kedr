@@ -95,7 +95,7 @@ function productInfo(product, overrides = {}) {
     ],
     bundledPlugins: studio
       ? ['com.intellij.java', 'PythonCore', 'com.kedr.go', 'org.jetbrains.plugins.textmate', 'su.rus.language-pack']
-      : ['PythonCore', 'com.jetbrains.pycharm.community.customization', 'su.rus.language-pack'],
+      : ['PythonCore', 'com.jetbrains.pycharm.community.customization', 'com.kedr.go', 'su.rus.language-pack'],
     layout: [],
     ...overrides,
   };
@@ -116,7 +116,7 @@ function withTemp(run) {
   }
 }
 
-function writeArtifacts(directory, product, { info = productInfo(product), missingExe = false } = {}) {
+function writeArtifacts(directory, product, { info = productInfo(product), missingExe = false, sources = false } = {}) {
   const stem = `kedr-${product}-262.TEST`;
   const launcher = product === 'studio' ? 'bin/idea64.exe' : 'bin/pycharm64.exe';
   const vmOptions = product === 'studio' ? 'bin/idea64.exe.vmoptions' : 'bin/pycharm64.exe.vmoptions';
@@ -136,6 +136,9 @@ function writeArtifacts(directory, product, { info = productInfo(product), missi
     writeFileSync(join(directory, `${stem}.exe`), fakeExe());
     writeChecksum(join(directory, `${stem}.exe`), 'sha256');
     writeChecksum(join(directory, `${stem}.exe`), 'sha512');
+  }
+  if (sources) {
+    writeFileSync(join(directory, `${stem}-sources.zip`), makeZip({ 'src/Main.kt': 'fun main() {}\n' }));
   }
   return stem;
 }
@@ -190,7 +193,75 @@ test('release verification works for Kedr Python', () => {
     writeArtifacts(directory, 'python');
     const result = verifyRelease({ product: 'python', artifactsDir: directory });
     assert.equal(result.artifacts.exe, 'kedr-python-262.TEST.exe');
+    assert.equal(result.artifacts.sources, null);
   });
+});
+
+test('Python requires the Go plugin', () => {
+  withTemp((directory) => {
+    writeArtifacts(directory, 'python', {
+      info: productInfo('python', {
+        bundledPlugins: ['PythonCore', 'com.jetbrains.pycharm.community.customization', 'su.rus.language-pack'],
+      }),
+    });
+    assert.throws(() => verifyRelease({ product: 'python', artifactsDir: directory }), /required plugin is missing: com.kedr.go/);
+  });
+});
+
+test('sources archive gets checksums and is staged', () => {
+  withTemp((directory) => {
+    const stem = writeArtifacts(directory, 'python', { sources: true });
+    const stage = join(directory, 'stage');
+    const result = verifyRelease({ product: 'python', artifactsDir: directory, stageDir: stage });
+    assert.equal(result.artifacts.sources, `${stem}-sources.zip`);
+    assert.equal(result.checksums.sources.sha256, hashFile(join(directory, `${stem}-sources.zip`), 'sha256'));
+    for (const name of [`${stem}-sources.zip`, `${stem}-sources.zip.sha256`, `${stem}-sources.zip.sha512`]) {
+      assert.ok(result.staged.includes(name), `missing staged file: ${name}`);
+    }
+  });
+});
+
+test('a wrong sources checksum is rejected', () => {
+  withTemp((directory) => {
+    const stem = writeArtifacts(directory, 'python', { sources: true });
+    writeFileSync(join(directory, `${stem}-sources.zip.sha256`), `${'0'.repeat(64)} *${stem}-sources.zip\n`);
+    assert.throws(() => verifyRelease({ product: 'python', artifactsDir: directory }), /sha256 mismatch/);
+  });
+});
+
+function repeatFirstEntry(zip) {
+  const eocdOffset = zip.length - 22;
+  const centralOffset = zip.readUInt32LE(eocdOffset + 16);
+  const centralSize = zip.readUInt32LE(eocdOffset + 12);
+  const recordLength = 46 + zip.readUInt16LE(centralOffset + 28)
+    + zip.readUInt16LE(centralOffset + 30) + zip.readUInt16LE(centralOffset + 32);
+  const eocd = Buffer.from(zip.subarray(eocdOffset));
+  eocd.writeUInt16LE(2, 8);
+  eocd.writeUInt16LE(2, 10);
+  eocd.writeUInt32LE(centralSize + recordLength, 12);
+  return Buffer.concat([
+    zip.subarray(0, eocdOffset),
+    zip.subarray(centralOffset, centralOffset + recordLength),
+    eocd,
+  ]);
+}
+
+test('a sources archive may repeat a path across modules', () => {
+  withTemp((directory) => {
+    const stem = writeArtifacts(directory, 'python');
+    const sourceZip = repeatFirstEntry(makeZip({ 'a/package-info.java': 'package a;\n' }));
+    writeFileSync(join(directory, `${stem}-sources.zip`), sourceZip);
+    const result = verifyRelease({ product: 'python', artifactsDir: directory });
+    assert.equal(result.artifacts.sources, `${stem}-sources.zip`);
+  });
+});
+
+test('duplicate entries stay fatal unless the caller allows them', () => {
+  const doubled = repeatFirstEntry(makeZip({ 'a.txt': 'hello' }));
+  assert.throws(() => ZipArchive.fromBuffer(doubled), /duplicate ZIP entry/);
+  const archive = ZipArchive.fromBuffer(doubled, { allowDuplicates: true });
+  assert.equal(archive.duplicateCount, 1);
+  assert.equal(archive.readEntry('a.txt').toString(), 'hello');
 });
 
 test('missing installer fails verification', () => {

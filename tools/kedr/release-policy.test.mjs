@@ -112,6 +112,14 @@ test('release workflows are pinned and publish both packages', () => {
   assert.match(release, /release:[\s\S]*?permissions:\s+contents: write/);
   assert.ok(release.includes('--draft'));
   assert.ok(release.includes('SHA256SUMS'));
+  assert.ok(release.includes('SHA512SUMS'));
+  assert.match(release, /pull_request:\s+paths:/);
+  assert.match(release, /push:\s+tags:\s+- 'v\*'/);
+  assert.match(release, /if: needs\.plan\.outputs\.publish == 'true'/);
+  assert.ok(release.includes('node --test tools/kedr/*.test.mjs'));
+  assert.ok(release.includes('docs/releases/$TAG.md'));
+  assert.ok(build.includes('compression-level: 0'));
+  assert.match(build, /timeout-minutes: 3[0-9][0-9]/);
   assert.ok(checks.includes('node --test tools/kedr/*.test.mjs'));
   assert.ok(mirror.includes('secrets.GITGUD_TOKEN'));
   assert.ok(mirror.includes('node tools/kedr/mirror-gitgud.mjs'));

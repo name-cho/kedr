@@ -11,6 +11,27 @@ on:
           - studio
           - python
         default: both
+  pull_request:
+    paths:
+      - '.github/workflows/kedr-windows.yml'
+      - '.github/workflows/kedr-windows-build.yml'
+      - 'tools/kedr/verify-release.mjs'
+      - 'tools/kedr/verify-release.test.mjs'
+      - 'tools/kedr/smoke-release.ps1'
+      - 'tools/kedr/release-policy.test.mjs'
+      - 'build/**'
+      - 'python/build/**'
+      - 'platform/build-scripts/**'
+      - 'platform/platform-impl/src/com/intellij/diagnostic/**'
+      - 'platform/platform-tests/testSrc/com/intellij/diagnostic/**'
+      - 'plugins/go/**'
+      - 'common.bazelrc'
+      - '.bazelrc'
+      - '.bazelversion'
+      - '.bazeliskversion'
+      - 'MODULE.bazel'
+      - 'MODULE.bazel.lock'
+      - 'docs/releases/**'
   push:
     tags:
       - 'v*'
@@ -19,30 +40,76 @@ permissions:
   contents: read
 
 concurrency:
-  group: kedr-${{ github.ref }}-${{ github.event.inputs.product || 'both' }}
+  group: kedr-windows-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      products: ${{ steps.plan.outputs.products }}
+      publish: ${{ steps.plan.outputs.publish }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+
+      - name: Run Kedr checks
+        run: node --test tools/kedr/*.test.mjs
+
+      - name: Select products
+        id: plan
+        env:
+          REQUESTED: ${{ github.event.inputs.product || 'both' }}
+        run: |
+          set -euo pipefail
+          case "$REQUESTED" in
+            both) echo 'products=["studio","python"]' >> "$GITHUB_OUTPUT" ;;
+            studio) echo 'products=["studio"]' >> "$GITHUB_OUTPUT" ;;
+            python) echo 'products=["python"]' >> "$GITHUB_OUTPUT" ;;
+            *) echo "unsupported product: $REQUESTED" >&2; exit 1 ;;
+          esac
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo 'publish=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'publish=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check release notes and tag shape
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          notes="docs/releases/$TAG.md"
+          test -s "$notes" || { echo "release notes are missing: $notes" >&2; exit 1; }
+          node -e '
+            const tag = process.env.TAG;
+            if (!/^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(tag)) {
+              throw new Error(`unsupported tag format: ${tag}`);
+            }
+          '
+
   build:
-    if: github.event_name == 'push' || github.event.inputs.product == 'both'
+    needs: plan
     strategy:
       fail-fast: false
       matrix:
-        product: [studio, python]
+        product: ${{ fromJSON(needs.plan.outputs.products) }}
     uses: ./.github/workflows/kedr-windows-build.yml
     with:
       product: ${{ matrix.product }}
 
-  build-single:
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.product != 'both'
-    uses: ./.github/workflows/kedr-windows-build.yml
-    with:
-      product: ${{ github.event.inputs.product }}
-
   release:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [build]
+    if: needs.plan.outputs.publish == 'true'
+    needs: [plan, build]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
@@ -59,15 +126,34 @@ jobs:
       - name: Verify checksums and prepare release assets
         run: |
           set -euo pipefail
-          test "$(find release -maxdepth 1 -name 'kedr-studio-*.win.zip' | wc -l)" -eq 1
-          test "$(find release -maxdepth 1 -name 'kedr-python-*.win.zip' | wc -l)" -eq 1
-          test "$(find release -maxdepth 1 -name 'kedr-studio-*.exe' | wc -l)" -eq 1
-          test "$(find release -maxdepth 1 -name 'kedr-python-*.exe' | wc -l)" -eq 1
+          shopt -s nullglob
           cd release
+          for product in studio python; do
+            zips=(kedr-$product-*.win.zip)
+            exes=(kedr-$product-*.exe)
+            test "${#zips[@]}" -eq 1 || { echo "expected one $product ZIP" >&2; exit 1; }
+            test "${#exes[@]}" -eq 1 || { echo "expected one $product installer" >&2; exit 1; }
+          done
           for file in *.sha256; do sha256sum -c "$file"; done
           for file in *.sha512; do sha512sum -c "$file"; done
-          sha256sum kedr-*.win.zip kedr-*.exe > SHA256SUMS
+          archives=(kedr-*.win.zip kedr-*.exe kedr-*-sources.zip)
+          sha256sum "${archives[@]}" > SHA256SUMS
           sha256sum -c SHA256SUMS
+          sha512sum "${archives[@]}" > SHA512SUMS
+          sha512sum -c SHA512SUMS
+
+      - name: Publish asset summary
+        run: |
+          set -euo pipefail
+          {
+            echo "## Kedr $GITHUB_REF_NAME"
+            echo
+            echo '| File | Bytes |'
+            echo '| --- | --- |'
+            for file in release/*; do
+              echo "| $(basename "$file") | $(stat -c %s "$file") |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create draft release
         env:
