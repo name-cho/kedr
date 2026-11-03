@@ -167,6 +167,46 @@ test('Go files and the New Project wizard use the platform Go icon', () => {
   assert.ok(read('.github/workflows/kedr-windows-build.yml').includes('//plugins/textmate/tests:tests_test'));
 });
 
+test('Go icon code declares the modules that own its imports', () => {
+  const cases = [
+    {
+      build: 'plugins/go/BUILD.bazel',
+      iml: 'plugins/go/intellij.go.iml',
+      sources: {
+        'plugins/go/src/com/kedr/golang/GoModuleFileType.kt': {
+          'com.intellij.openapi.fileTypes.PlainTextLanguage': '//platform/core-impl',
+          'com.intellij.icons.AllIcons': '//platform/util:util-ui',
+        },
+        'plugins/go/src/com/kedr/golang/GoNewProjectWizard.kt': {
+          'com.intellij.ide.wizard.language.LanguageGeneratorNewProjectWizard': '//platform/platform-impl:ide-impl',
+        },
+      },
+    },
+    {
+      build: 'plugins/textmate/tests/BUILD.bazel',
+      iml: 'plugins/textmate/tests/intellij.textmate.tests.iml',
+      sources: {
+        'plugins/textmate/tests/tests/org/jetbrains/plugins/textmate/language/syntax/lexer/GoIconsTest.kt': {
+          'com.intellij.openapi.fileTypes.PlainTextLanguage': '//platform/core-impl',
+          'com.intellij.icons.AllIcons': '//platform/util:util-ui',
+          'com.intellij.ide.wizard.language.LanguageGeneratorNewProjectWizard': '//platform/platform-impl:ide-impl',
+        },
+      },
+    },
+  ];
+  for (const { build, iml, sources } of cases) {
+    const declared = read(build);
+    for (const [path, imports] of Object.entries(sources)) {
+      const source = read(path);
+      for (const [symbol, dependency] of Object.entries(imports)) {
+        assert.ok(source.includes(`import ${symbol}`), `${path} must import ${symbol}`);
+        assert.ok(declared.includes(`"${dependency}"`), `${build} must depend on ${dependency} for ${symbol}`);
+      }
+    }
+    assert.ok(read(iml).includes('intellij.platform.core.impl'), `${iml} must list the core.impl module`);
+  }
+});
+
 test('project contacts point to Kedr', () => {
   const security = read('SECURITY.md');
   const contributing = read('CONTRIBUTING.md');

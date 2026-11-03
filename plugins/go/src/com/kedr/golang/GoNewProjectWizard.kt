@@ -14,13 +14,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.Icon
 
-/**
- * Adds Go to the language tray of the New Project wizard.
- *
- * The generated project contains a minimal `go.mod` and `main.go`; the module
- * itself is a regular general-purpose module, so `gopls` can pick the project
- * up as soon as the files are indexed.
- */
 class GoNewProjectWizard : LanguageGeneratorNewProjectWizard {
   override val name: String = "Go"
   override val icon: Icon = AllIcons.Language.GO
