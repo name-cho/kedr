@@ -14,13 +14,14 @@ Target platform: **Windows x64**. macOS and Linux are out of scope until someone
 ## M1 — Rebrand to Kedr
 
 - [x] Product descriptors: `IdeaApplicationInfo.xml`, `PyCharmCoreApplicationInfo.xml`
+- [x] Drop the `RC` version suffix for the stable 1.2 release in both products
 - [x] Product properties: `IdeaCommunityProperties.kt`, `PyCharmCommunityProperties.kt`
 - [x] Settings/system dirs: `KedrStudio2026.3`, `KedrPython2026.3` (no shared state with real JetBrains IDEs)
 - [x] Icons, splash, installer bitmaps, window title
 - [x] About dialog: own copyright record plus a "Based on the IntelliJ Platform by JetBrains" line
   (verified at runtime in both products)
 - [x] Portable Windows ZIP for both products; the 2026.2 builds launched from extracted folders
-- [ ] Verify the 2026.3 RC ZIPs and installers in Windows CI
+- [x] Verify the 2026.3 ZIPs and installers in Windows CI
 - [x] Keep `bin/idea64.exe` / `bin/pycharm64.exe` and upstream product codes `IC`/`PC` so Marketplace plugin compatibility keeps working
 
 ## M2 — Remove subscription and upsell UI

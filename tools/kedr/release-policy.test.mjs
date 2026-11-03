@@ -149,6 +149,21 @@ test('Studio bundles Go highlighting independently of gopls', () => {
   assert.ok(read('plugins/textmate/tests/tests/org/jetbrains/plugins/textmate/language/syntax/lexer/GoHighlightingWiringTest.kt').includes('TextMateEditorHighlighterProvider'));
 });
 
+test('stable releases carry no RC or EAP version marker', () => {
+  for (const path of [
+    'community-resources/resources/idea/IdeaApplicationInfo.xml',
+    'python/ide-common/resources/idea/PyCharmCoreApplicationInfo.xml',
+  ]) {
+    const version = read(path).match(/<version\b[^>]*\/>/)?.[0];
+    assert.ok(version, `${path} must declare a version`);
+    assert.ok(!/\bsuffix=/.test(version), `${path} must not label the stable release: ${version}`);
+    assert.match(version, /eap="false"/);
+  }
+  const workflow = read('.github/workflows/kedr-windows.yml');
+  assert.match(workflow, /flags\+=\(--prerelease --latest=false\)/);
+  assert.match(workflow, /== \*-\* \]\]/);
+});
+
 test('Go files and the New Project wizard use the platform Go icon', () => {
   for (const path of [
     'plugins/go/src/com/kedr/golang/GoFileType.kt',
