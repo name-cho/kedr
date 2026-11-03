@@ -23,7 +23,7 @@ import javax.swing.Icon
  */
 class GoNewProjectWizard : LanguageGeneratorNewProjectWizard {
   override val name: String = "Go"
-  override val icon: Icon = AllIcons.Nodes.Module
+  override val icon: Icon = AllIcons.Language.GO
   override val ordinal: Int = 100
 
   override fun createStep(parent: NewProjectWizardStep): NewProjectWizardStep = Step(parent)

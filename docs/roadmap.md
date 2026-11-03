@@ -57,9 +57,10 @@ core, the type engine, Jupyter (via the notebook modules), pytest/unittest and t
 - [x] Keep Go in the universal-editor scope, including installer file associations
 - [x] Bundle the Go TextMate grammar for syntax highlighting without an external language server
 - [x] Provide the Kedr Go plugin and New Project wizard
+- [x] Show the platform Go icon in the wizard, for `.go` files and for `go.mod`, `go.sum`, `go.work`
 - [x] Connect `gopls` through the open LSP client when it is available on `PATH`
 - [ ] Add Go toolchain discovery beyond `PATH` and run configurations for `go run`, `go test`, `go build`
-- [ ] Verify highlighting, `go.mod`/`go.sum` handling and the optional LSP integration in Windows release smoke tests
+- [ ] Verify highlighting and the optional LSP integration in Windows release smoke tests
 
 ## M5 — Russian localisation
 

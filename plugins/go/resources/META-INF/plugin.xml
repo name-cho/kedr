@@ -22,6 +22,8 @@
   <extensions defaultExtensionNs="com.intellij">
     <fileType name="Go" extensions="go" language="Go"
               fieldName="INSTANCE" implementationClass="com.kedr.golang.GoFileType"/>
+    <fileType name="Go Module" fileNames="go.mod;go.sum;go.work"
+              fieldName="INSTANCE" implementationClass="com.kedr.golang.GoModuleFileType"/>
     <lang.syntaxHighlighterFactory language="Go"
                                    implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateSyntaxHighlighterFactory"/>
     <editorHighlighterProvider filetype="Go"

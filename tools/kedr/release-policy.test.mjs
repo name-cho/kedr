@@ -147,6 +147,23 @@ test('Studio bundles Go highlighting independently of gopls', () => {
   assert.ok(read('tools/kedr/verify-release.mjs').includes('verifyGoHighlighting(zip, prefix)'));
   assert.ok(read('tools/kedr/smoke-release.ps1').includes("'com.kedr.go'"));
   assert.ok(read('plugins/textmate/tests/tests/org/jetbrains/plugins/textmate/language/syntax/lexer/GoHighlightingWiringTest.kt').includes('TextMateEditorHighlighterProvider'));
+});
+
+test('Go files and the New Project wizard use the platform Go icon', () => {
+  for (const path of [
+    'plugins/go/src/com/kedr/golang/GoFileType.kt',
+    'plugins/go/src/com/kedr/golang/GoModuleFileType.kt',
+    'plugins/go/src/com/kedr/golang/GoNewProjectWizard.kt',
+  ]) {
+    assert.ok(read(path).includes('AllIcons.Language.GO'), `${path} must use the platform Go icon`);
+  }
+  const descriptor = read('plugins/go/resources/META-INF/plugin.xml');
+  assert.match(descriptor, /fileType name="Go Module" fileNames="go\.mod;go\.sum;go\.work"/);
+  const icons = read('platform/util/ui/src/com/intellij/icons/AllIcons.java');
+  assert.match(icons, /Icon GO = load\("language\/go\.svg"/);
+  const test = read('plugins/textmate/tests/tests/org/jetbrains/plugins/textmate/language/syntax/lexer/GoIconsTest.kt');
+  assert.ok(test.includes('newProjectWizardShowsTheGoIcon'));
+  assert.ok(test.includes('moduleFilesAreRecognisedByName'));
   assert.ok(read('.github/workflows/kedr-windows-build.yml').includes('//plugins/textmate/tests:tests_test'));
 });
 

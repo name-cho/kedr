@@ -16,5 +16,5 @@ class GoFileType : LanguageFileType(GoLanguage) {
   override fun getName(): String = "Go"
   override fun getDescription(): String = "Go source file"
   override fun getDefaultExtension(): String = "go"
-  override fun getIcon(): Icon = AllIcons.FileTypes.Text
+  override fun getIcon(): Icon = AllIcons.Language.GO
 }
