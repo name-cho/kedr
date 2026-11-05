@@ -1,0 +1,68 @@
+<idea-plugin url="https://github.com/name-cho/kedr">
+  <id>com.kedr.web</id>
+  <name>Web (Kedr)</name>
+  <vendor>Kedr Project</vendor>
+  <description><![CDATA[
+      HTML, CSS, JavaScript and TypeScript support for Kedr. Syntax
+      highlighting comes from the TextMate bundles that ship with the TextMate
+      plugin, and every web language has its own file type and icon. The plugin
+      adds a web project generator and the Web Preview tool window, which serves
+      the project over a local HTTP server and reloads the page on save.
+    ]]></description>
+
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.lang</depends>
+
+  <dependencies>
+    <plugin id="com.intellij.modules.jcef"/>
+    <module name="intellij.libraries.jcef"/>
+    <module name="intellij.platform.ui.jcef"/>
+    <module name="intellij.textmate"/>
+  </dependencies>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <fileType name="CSS" extensions="css" language="Web"
+              fieldName="INSTANCE" implementationClass="com.kedr.web.CssFileType"/>
+    <fileType name="SCSS" extensions="scss" language="Web"
+              fieldName="INSTANCE" implementationClass="com.kedr.web.ScssFileType"/>
+    <fileType name="Less" extensions="less" language="Web"
+              fieldName="INSTANCE" implementationClass="com.kedr.web.LessFileType"/>
+    <fileType name="JavaScript" extensions="js;mjs;cjs" language="Web"
+              fieldName="INSTANCE" implementationClass="com.kedr.web.JavaScriptFileType"/>
+    <fileType name="JSX" extensions="jsx" language="Web"
+              fieldName="INSTANCE" implementationClass="com.kedr.web.JsxFileType"/>
+    <fileType name="TypeScript" extensions="ts;mts;cts" language="Web"
+              fieldName="INSTANCE" implementationClass="com.kedr.web.TypeScriptFileType"/>
+    <fileType name="TSX" extensions="tsx" language="Web"
+              fieldName="INSTANCE" implementationClass="com.kedr.web.TsxFileType"/>
+
+    <lang.syntaxHighlighterFactory language="Web"
+                                   implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateSyntaxHighlighterFactory"/>
+    <editorHighlighterProvider filetype="CSS"
+                               implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateEditorHighlighterProvider"/>
+    <editorHighlighterProvider filetype="SCSS"
+                               implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateEditorHighlighterProvider"/>
+    <editorHighlighterProvider filetype="Less"
+                               implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateEditorHighlighterProvider"/>
+    <editorHighlighterProvider filetype="JavaScript"
+                               implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateEditorHighlighterProvider"/>
+    <editorHighlighterProvider filetype="JSX"
+                               implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateEditorHighlighterProvider"/>
+    <editorHighlighterProvider filetype="TypeScript"
+                               implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateEditorHighlighterProvider"/>
+    <editorHighlighterProvider filetype="TSX"
+                               implementationClass="org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateEditorHighlighterProvider"/>
+
+    <toolWindow id="Web Preview" anchor="right" secondary="true" icon="AllIcons.FileTypes.Html"
+                factoryClass="com.kedr.web.preview.WebPreviewToolWindowFactory"/>
+    <newProjectWizard.languageGenerator implementation="com.kedr.web.WebNewProjectWizard"/>
+  </extensions>
+
+  <actions>
+    <action id="Kedr.WebPreview.Open" class="com.kedr.web.preview.OpenWebPreviewAction"
+            text="Open in Web Preview" description="Show the current page in the Web Preview tool window">
+      <add-to-group group-id="ToolsMenu" anchor="first"/>
+      <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+    </action>
+  </actions>
+</idea-plugin>

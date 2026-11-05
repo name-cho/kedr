@@ -71,6 +71,8 @@ jvm_library(
         "//plugins/textmate:textmate_test_lib",
         "//plugins/go",
         "//plugins/go:go_test_lib",
+        "//plugins/web",
+        "//plugins/web:web_test_lib",
         "//platform/platform-impl:ide-impl",
         "//platform/platform-impl:ide-impl_test_lib",
         "//platform/util:util-ui",

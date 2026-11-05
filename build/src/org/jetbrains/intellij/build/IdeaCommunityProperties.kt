@@ -64,6 +64,7 @@ open class IdeaCommunityProperties(private val communityHomeDir: Path) : JetBrai
       "intellij.javaFX.community",
       "intellij.python.community.plugin",
       "intellij.go",
+      "intellij.web",
     )
 
     productLayout.prepareCustomPluginRepositoryForPublishedPlugins = false
@@ -257,7 +258,8 @@ inline fun ideaCommunityWindowsCustomizer(
   projectHome: Path,
   configure: WindowsCustomizerBuilder.() -> Unit = {},
 ): WindowsDistributionCustomizer = windowsCustomizer(projectHome) {
-  fileAssociations = listOf("java", "gradle", "groovy", "kt", "kts", "pom", "py", "pyi", "ipynb", "go", "mod", "md", "json", "yaml", "yml", "sql", "sh")
+  fileAssociations = listOf("java", "gradle", "groovy", "kt", "kts", "pom", "py", "pyi", "ipynb", "go", "mod", "md", "json", "yaml", "yml", "sql", "sh",
+                            "html", "htm", "css", "scss", "less", "js", "jsx", "ts", "tsx")
 
   fullName { "Kedr Studio" }
   installDirNameHandler { "Kedr Studio" }

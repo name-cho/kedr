@@ -48,6 +48,18 @@ zout.close(); zin.close()
 - Consequence: Python debugging in Kedr Python and Kedr Studio uses the classic pydevd debugger that
   ships inside the community Python plugin (`plugins/python-ce/helpers/pydev`). No DAP features.
 
+## Web support (bundled plugin `com.kedr.web`)
+
+- Plugin id `com.kedr.web`, module `intellij.web`, sources in `plugins/web`. Bundled in both products.
+- File types and platform icons for CSS, SCSS, Less, JavaScript, JSX, TypeScript and TSX. HTML keeps the
+  platform file type of the XML plugin.
+- Highlighting uses the TextMate bundles that already ship inside the TextMate plugin (`html`, `css`, `scss`,
+  `less`, `javascript`, `typescript-basics`), so no new grammar and no new licence enters the build.
+- The plugin adds a `Web` generator to the New Project wizard and the `Web Preview` tool window. The tool
+  window serves the project over a local HTTP server on `127.0.0.1` and reloads the page on save.
+- Completion and refactoring for CSS, JavaScript and TypeScript stay in the closed-source JetBrains Web
+  plugins; they are not part of this tree. Details: [web.md](web.md).
+
 ## What is bundled upstream and already works
 
 The community Python plugin already contains `ruff`, `uv`, `pyright`, `pyrefly`, `ty`, `zuban`,

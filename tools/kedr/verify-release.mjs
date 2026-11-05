@@ -18,14 +18,14 @@ export const PRODUCTS = {
     name: 'Kedr Studio',
     dataDirectoryPrefix: 'KedrStudio',
     launcher: 'bin/idea64.exe',
-    requiredPlugins: ['com.intellij.java', 'PythonCore', 'com.kedr.go', 'org.jetbrains.plugins.textmate', 'su.rus.language-pack'],
+    requiredPlugins: ['com.intellij.java', 'PythonCore', 'com.kedr.go', 'com.kedr.web', 'org.jetbrains.plugins.textmate', 'su.rus.language-pack'],
   },
   python: {
     code: 'PC',
     name: 'Kedr Python',
     dataDirectoryPrefix: 'KedrPython',
     launcher: 'bin/pycharm64.exe',
-    requiredPlugins: ['PythonCore', 'com.jetbrains.pycharm.community.customization', 'com.kedr.go', 'su.rus.language-pack'],
+    requiredPlugins: ['PythonCore', 'com.jetbrains.pycharm.community.customization', 'com.kedr.go', 'com.kedr.web', 'su.rus.language-pack'],
   },
 };
 
@@ -311,6 +311,30 @@ export function verifyGoHighlighting(zip, prefix) {
   if (grammar.scopeName !== 'source.go') fail('unexpected Go TextMate grammar scope');
 }
 
+const WEB_BUNDLES = [
+  { name: 'html', extension: '.html', scope: 'text.html.basic' },
+  { name: 'css', extension: '.css', scope: 'source.css' },
+  { name: 'javascript', extension: '.js', scope: 'source.js' },
+  { name: 'typescript-basics', extension: '.ts', scope: 'source.ts' },
+];
+
+export function verifyWebSupport(zip, prefix) {
+  const root = `${prefix}plugins/textmate-plugin/lib/bundles/`;
+  for (const bundle of WEB_BUNDLES) {
+    const manifestPath = `${root}${bundle.name}/package.json`;
+    if (!zip.has(manifestPath)) fail(`web TextMate bundle is missing: ${bundle.name}`);
+    const manifest = JSON.parse(zip.readEntry(manifestPath).toString('utf8'));
+    const mapsExtension = (manifest.contributes?.languages ?? []).some((language) => language.extensions?.includes(bundle.extension));
+    if (!mapsExtension) fail(`the ${bundle.name} TextMate bundle does not map ${bundle.extension} files`);
+    const grammar = (manifest.contributes?.grammars ?? []).find((item) => item.scopeName === bundle.scope);
+    if (!grammar) fail(`the ${bundle.name} TextMate bundle has no ${bundle.scope} grammar`);
+    const grammarPath = String(grammar.path ?? '').replace(/^\.\//, '');
+    if (!grammarPath || !zip.has(`${root}${bundle.name}/${grammarPath}`)) {
+      fail(`the ${bundle.name} TextMate grammar file is missing`);
+    }
+  }
+}
+
 export function verifyProductInfo(zip, productInfoPath, productInfo, product) {
   const expected = PRODUCTS[product];
   if (!expected) fail(`unknown product: ${product}`);
@@ -338,7 +362,10 @@ export function verifyProductInfo(zip, productInfoPath, productInfo, product) {
   for (const id of expected.requiredPlugins) {
     if (!ids.has(id)) fail(`required plugin is missing: ${id}`);
   }
-  if (product === 'studio') verifyGoHighlighting(zip, prefix);
+  if (product === 'studio') {
+    verifyGoHighlighting(zip, prefix);
+    verifyWebSupport(zip, prefix);
+  }
   return { prefix, buildNumber: productInfo.buildNumber };
 }
 

@@ -198,6 +198,26 @@ test('Go icon code declares the modules that own its imports', () => {
       },
     },
     {
+      build: 'plugins/web/BUILD.bazel',
+      iml: 'plugins/web/intellij.web.iml',
+      sources: {
+        'plugins/web/src/com/kedr/web/WebFileTypes.kt': {
+          'com.intellij.icons.AllIcons': '//platform/util:util-ui',
+        },
+        'plugins/web/src/com/kedr/web/WebNewProjectWizard.kt': {
+          'com.intellij.ide.wizard.language.LanguageGeneratorNewProjectWizard': '//platform/platform-impl:ide-impl',
+          'com.intellij.openapi.module.ModuleTypeManager': '//platform/lang-core:lang-core',
+        },
+        'plugins/web/src/com/kedr/web/preview/WebPreviewService.kt': {
+          'com.intellij.openapi.wm.ToolWindowManager': '//platform/platform-api:ide',
+        },
+        'plugins/web/src/com/kedr/web/preview/WebPreviewToolWindowFactory.kt': {
+          'com.intellij.ui.content.ContentFactory': '//platform/ide-core',
+          'com.intellij.ui.jcef.JBCefBrowser': '//platform/ui.jcef:ui.jcef',
+        },
+      },
+    },
+    {
       build: 'plugins/textmate/tests/BUILD.bazel',
       iml: 'plugins/textmate/tests/intellij.textmate.tests.iml',
       sources: {
@@ -244,4 +264,56 @@ test('release and troubleshooting docs exist and are linked', () => {
   const provenance = read('third-party/plugins/rus-language-pack/PROVENANCE.md');
   assert.ok(provenance.includes('5355a15493d71adaa932bdd006612b313e23dfcaca0b19f3f172a285fd8c1ee7'));
   assert.ok(read('NOTICE.txt').includes('su.rus.language-pack'));
+});
+
+test('Studio bundles web support with the platform icons', () => {
+  const descriptor = read('plugins/web/resources/META-INF/plugin.xml');
+  assert.ok(descriptor.includes('<id>com.kedr.web</id>'));
+  for (const entry of [
+    'fileType name="CSS" extensions="css"',
+    'fileType name="SCSS" extensions="scss"',
+    'fileType name="Less" extensions="less"',
+    'fileType name="JavaScript" extensions="js;mjs;cjs"',
+    'fileType name="JSX" extensions="jsx"',
+    'fileType name="TypeScript" extensions="ts;mts;cts"',
+    'fileType name="TSX" extensions="tsx"',
+    'lang.syntaxHighlighterFactory language="Web"',
+    'editorHighlighterProvider filetype="TypeScript"',
+    'TextMateSyntaxHighlighterFactory',
+    'TextMateEditorHighlighterProvider',
+    'module name="intellij.textmate"',
+    'module name="intellij.platform.ui.jcef"',
+    'toolWindow id="Web Preview"',
+    'newProjectWizard.languageGenerator',
+    'id="Kedr.WebPreview.Open"',
+  ]) {
+    assert.ok(descriptor.includes(entry), `missing from the web descriptor: ${entry}`);
+  }
+
+  const icons = read('platform/util/ui/src/com/intellij/icons/AllIcons.java');
+  for (const icon of ['Css', 'JavaScript', 'TypeScript', 'Html']) {
+    assert.ok(icons.includes(`Icon ${icon} = load(`), `missing platform icon: ${icon}`);
+  }
+  assert.ok(read('plugins/web/src/com/kedr/web/WebFileTypes.kt').includes('AllIcons'));
+  assert.ok(read('plugins/web/src/com/kedr/web/WebNewProjectWizard.kt').includes('AllIcons.FileTypes.Html'));
+
+  const properties = read('build/src/org/jetbrains/intellij/build/IdeaCommunityProperties.kt');
+  assert.ok(properties.includes('"intellij.web"'));
+  assert.ok(properties.includes('"html", "htm", "css", "scss", "less", "js", "jsx", "ts", "tsx"'));
+
+  assert.ok(read('tools/kedr/verify-release.mjs').includes('verifyWebSupport(zip, prefix)'));
+  assert.ok(read('tools/kedr/smoke-release.ps1').includes("'com.kedr.web'"));
+  assert.ok(read('tools/kedr/smoke-release.ps1').includes('Test-WebBundles'));
+  assert.ok(read('.github/workflows/kedr-windows-build.yml').includes('language.syntax.lexer.Web'));
+
+  const test = read('plugins/textmate/tests/tests/org/jetbrains/plugins/textmate/language/syntax/lexer/WebSupportTest.kt');
+  for (const name of [
+    'webFilesUseTheWebFileTypes',
+    'webFileTypesShowWebIcons',
+    'webFileTypesUseTextMateHighlighting',
+    'theNewProjectWizardOffersAWebProject',
+    'thePreviewServerServesTheProjectDirectory',
+  ]) {
+    assert.ok(test.includes(name), `missing web test: ${name}`);
+  }
 });
