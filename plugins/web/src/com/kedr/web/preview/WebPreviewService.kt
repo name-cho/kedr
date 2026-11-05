@@ -30,7 +30,7 @@ class WebPreviewService(private val project: Project) : Disposable {
     private set
 
   init {
-    project.messageBus.connect(this).subscribe(VirtualFileManager.VFS_CHANGES, object : BulkFileListener {
+    ApplicationManager.getApplication().messageBus.connect(this).subscribe(VirtualFileManager.VFS_CHANGES, object : BulkFileListener {
       override fun after(events: List<VFileEvent>) {
         val base = root ?: return
         val touched = events.any { event -> event is VFileContentChangeEvent && isInside(base, event) }
