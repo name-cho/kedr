@@ -50,10 +50,11 @@ internal class WebSupportTest {
 
   @Test
   fun everyWebFileTypeHasItsOwnDisplayName() {
-    val displayNames = webTypes.map { it.type.displayName }
-    assertEquals(displayNames.size, displayNames.toSet().size, displayNames.toString())
-    for (entry in webTypes) {
-      assertEquals(entry.type.name, entry.type.displayName, entry.extension)
+    val types = webTypes.map { it.type }.distinct()
+    val displayNames = types.map { it.displayName }
+    assertEquals(types.size, displayNames.toSet().size, displayNames.toString())
+    for (type in types) {
+      assertEquals(type.name, type.displayName)
     }
   }
 
