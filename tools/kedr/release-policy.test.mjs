@@ -211,7 +211,12 @@ test('Go icon code declares the modules that own its imports', () => {
         'plugins/web/src/com/kedr/web/preview/WebPreviewService.kt': {
           'com.intellij.openapi.wm.ToolWindowManager': '//platform/platform-api:ide',
         },
+        'plugins/web/src/com/kedr/web/preview/OpenWebPreviewAction.kt': {
+          'com.intellij.openapi.actionSystem.AnActionEvent': '//platform/editor-ui-api:editor-ui',
+          'com.intellij.openapi.project.DumbAwareAction': '//platform/ide-core',
+        },
         'plugins/web/src/com/kedr/web/preview/WebPreviewToolWindowFactory.kt': {
+          'com.intellij.openapi.wm.ToolWindow': '//platform/ide-core',
           'com.intellij.ui.content.ContentFactory': '//platform/ide-core',
           'com.intellij.ui.jcef.JBCefBrowser': '//platform/ui.jcef:ui.jcef',
         },
