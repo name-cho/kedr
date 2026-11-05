@@ -11,6 +11,7 @@ open class WebFileType(
   private val typeIcon: Icon,
 ) : LanguageFileType(WebLanguage) {
   override fun getName(): String = typeName
+  override fun getDisplayName(): String = typeName
   override fun getDescription(): String = typeDescription
   override fun getDefaultExtension(): String = typeExtension
   override fun getIcon(): Icon = typeIcon
