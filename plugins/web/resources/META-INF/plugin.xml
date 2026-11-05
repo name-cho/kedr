@@ -12,9 +12,9 @@
 
   <depends>com.intellij.modules.platform</depends>
   <depends>com.intellij.modules.lang</depends>
+  <depends>com.intellij.modules.jcef</depends>
 
   <dependencies>
-    <plugin id="com.intellij.modules.jcef"/>
     <module name="intellij.libraries.jcef"/>
     <module name="intellij.platform.ui.jcef"/>
     <module name="intellij.textmate"/>

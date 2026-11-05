@@ -52,7 +52,8 @@ The tool window `Web Preview` renders the page next to the editor.
 - Path resolution rejects every request that escapes the project directory.
 - The page reloads 200 ms after a file in the project changes, which covers the save action of the IDE and
   edits made by another tool.
-- If JCEF is not available, the tool window shows a message and the **Open in Browser** button still works.
+- The tool window needs the JCEF browser, which both products bundle. When CEF cannot start
+  (`JBCefApp.isSupported()` returns false), the panel shows a message and **Open in Browser** still works.
   The same button is the way to use a full browser at any time.
 - `Tools | Open in Web Preview` and the editor context menu open the current HTML file in the tool window.
 

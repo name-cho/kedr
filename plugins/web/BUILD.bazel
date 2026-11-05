@@ -60,6 +60,7 @@ jvm_library(
         "//platform/platform-api:ide_test_lib",
         "//platform/platform-impl:ide-impl_test_lib",
         "//platform/util:util-ui_test_lib",
+        "//plugins/jcef/plugin:plugin_test_lib",
         "//plugins/textmate:textmate_test_lib",
     ],
 )

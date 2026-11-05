@@ -286,6 +286,7 @@ test('Studio bundles web support with the platform icons', () => {
     'editorHighlighterProvider filetype="TypeScript"',
     'TextMateSyntaxHighlighterFactory',
     'TextMateEditorHighlighterProvider',
+    '<depends>com.intellij.modules.jcef</depends>',
     'module name="intellij.textmate"',
     'module name="intellij.platform.ui.jcef"',
     'toolWindow id="Web Preview"',

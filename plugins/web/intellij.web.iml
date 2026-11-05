@@ -24,5 +24,6 @@
     <orderEntry type="module" module-name="intellij.platform.ui.jcef" />
     <orderEntry type="module" module-name="intellij.platform.util.ui" />
     <orderEntry type="module" module-name="intellij.textmate" />
+    <orderEntry type="module" module-name="intellij.jcef.plugin" />
   </component>
 </module>
