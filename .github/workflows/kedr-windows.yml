@@ -26,6 +26,7 @@ on:
       - 'platform/platform-tests/testSrc/com/intellij/diagnostic/**'
       - 'plugins/go/**'
       - 'plugins/textmate/**'
+      - 'plugins/web/**'
       - 'community-resources/resources/idea/IdeaApplicationInfo.xml'
       - 'python/ide-common/resources/idea/PyCharmCoreApplicationInfo.xml'
       - 'common.bazelrc'

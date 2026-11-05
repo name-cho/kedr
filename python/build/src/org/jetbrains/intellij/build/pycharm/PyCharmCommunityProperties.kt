@@ -45,6 +45,7 @@ class PyCharmCommunityProperties(private val communityHome: Path) : PyCharmPrope
       sequenceOf(
         "intellij.python.community.plugin", // Python language
         "intellij.go", // Go via gopls LSP
+        "intellij.web", // HTML, CSS, JavaScript and the Web Preview
         "intellij.pycharm.community.customization", // Convert Intellij to PyCharm
         "intellij.pycharm.community.customization.shared",
         "intellij.vcs.github",

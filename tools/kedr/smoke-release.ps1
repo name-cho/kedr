@@ -15,8 +15,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $requiredPlugins = @{
-  studio = @('com.intellij.java', 'PythonCore', 'com.kedr.go', 'org.jetbrains.plugins.textmate', 'su.rus.language-pack')
-  python = @('PythonCore', 'com.jetbrains.pycharm.community.customization', 'com.kedr.go', 'su.rus.language-pack')
+  studio = @('com.intellij.java', 'PythonCore', 'com.kedr.go', 'com.kedr.web', 'org.jetbrains.plugins.textmate', 'su.rus.language-pack')
+  python = @('PythonCore', 'com.jetbrains.pycharm.community.customization', 'com.kedr.go', 'com.kedr.web', 'su.rus.language-pack')
 }
 $forbiddenModules = @(
   'intellij.pycharm.community.ide.impl.promotion',
@@ -113,6 +113,20 @@ function Test-BundledPlugins {
   }
 }
 
+function Test-WebBundles {
+  param([string]$Root)
+
+  if ($Product -ne 'studio') {
+    return
+  }
+  foreach ($bundle in @('html', 'css', 'javascript', 'typescript-basics')) {
+    $manifest = Join-Path $Root "plugins\textmate-plugin\lib\bundles\$bundle\package.json"
+    if (-not (Test-Path -LiteralPath $manifest)) {
+      throw "web TextMate bundle is missing: $bundle"
+    }
+  }
+}
+
 $logDir = (Get-Location).Path
 $artifacts = (Resolve-Path -LiteralPath $ArtifactsDir).Path
 $zip = Get-ChildItem -LiteralPath $artifacts -Filter "kedr-$Product-*.win.zip" |
@@ -142,6 +156,7 @@ $portablePlugins = Join-Path $portableState 'bundled-plugins.json'
 Invoke-CheckedProcess -FilePath $productInfo.Launcher -Arguments @('listBundledPlugins', $portablePlugins) `
   -LogPath (Join-Path $logDir "smoke-$Product-portable.log") -WorkingDirectory $portable
 Test-BundledPlugins -JsonPath $portablePlugins
+Test-WebBundles -Root $portable
 
 $sample = Join-Path $work 'sample.py'
 Set-Content -LiteralPath $sample -Value 'x=1' -Encoding ascii
@@ -170,6 +185,7 @@ $installedPlugins = Join-Path $installedState 'bundled-plugins.json'
 Invoke-CheckedProcess -FilePath $installed.Launcher -Arguments @('listBundledPlugins', $installedPlugins) `
   -LogPath (Join-Path $logDir "smoke-$Product-installed.log") -WorkingDirectory $installDir
 Test-BundledPlugins -JsonPath $installedPlugins
+Test-WebBundles -Root $installDir
 
 $uninstaller = Join-Path $installDir 'bin\Uninstall.exe'
 if (-not (Test-Path -LiteralPath $uninstaller)) {

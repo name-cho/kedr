@@ -58,6 +58,13 @@ Artifacts are produced in `out/kedr-studio/artifacts` and `out/kedr-python/artif
   through `gopls` when it is installed on `PATH`. Go carries the platform Go icon in
   the New Project wizard, for `.go` files and for `go.mod`, `go.sum`, `go.work` and `go.work.sum`.
   Python support is bundled as well.
+- **Web development works out of the box in both products.** HTML, CSS, JavaScript and TypeScript are
+  highlighted with the TextMate grammars that ship with the platform, and each web language has its own
+  file type and platform icon. The **New Project** wizard writes a ready-to-run page, and the **Web Preview**
+  tool window shows it: the IDE serves the project over a local HTTP server and reloads the page when you save
+  a file. Completion, refactoring and inspections for CSS, JavaScript and TypeScript live in the closed-source
+  JetBrains Web plugins and are not part of this build; HTML keeps the completion, formatting and inspections
+  of the open-source XML plugin.
 - **Russian language pack is bundled** in both products (`su.rus.language-pack`,
   MIT). The UI starts in English; the pack is offered on first start and can be
   switched at any time in Settings | Appearance & Behavior | System Settings | Language.

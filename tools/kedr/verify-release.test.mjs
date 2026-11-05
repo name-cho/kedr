@@ -94,8 +94,8 @@ function productInfo(product, overrides = {}) {
       },
     ],
     bundledPlugins: studio
-      ? ['com.intellij.java', 'PythonCore', 'com.kedr.go', 'org.jetbrains.plugins.textmate', 'su.rus.language-pack']
-      : ['PythonCore', 'com.jetbrains.pycharm.community.customization', 'com.kedr.go', 'su.rus.language-pack'],
+      ? ['com.intellij.java', 'PythonCore', 'com.kedr.go', 'com.kedr.web', 'org.jetbrains.plugins.textmate', 'su.rus.language-pack']
+      : ['PythonCore', 'com.jetbrains.pycharm.community.customization', 'com.kedr.go', 'com.kedr.web', 'su.rus.language-pack'],
     layout: [],
     ...overrides,
   };
@@ -116,6 +116,28 @@ function withTemp(run) {
   }
 }
 
+const WEB_FIXTURE_BUNDLES = [
+  { name: 'html', extension: '.html', scope: 'text.html.basic' },
+  { name: 'css', extension: '.css', scope: 'source.css' },
+  { name: 'javascript', extension: '.js', scope: 'source.js' },
+  { name: 'typescript-basics', extension: '.ts', scope: 'source.ts' },
+];
+
+function webBundleEntries() {
+  const entries = {};
+  for (const bundle of WEB_FIXTURE_BUNDLES) {
+    const root = `plugins/textmate-plugin/lib/bundles/${bundle.name}`;
+    entries[`${root}/package.json`] = JSON.stringify({
+      contributes: {
+        languages: [{ id: bundle.name, extensions: [bundle.extension] }],
+        grammars: [{ scopeName: bundle.scope, path: `./syntaxes/${bundle.name}.tmLanguage.json` }],
+      },
+    });
+    entries[`${root}/syntaxes/${bundle.name}.tmLanguage.json`] = JSON.stringify({ scopeName: bundle.scope });
+  }
+  return entries;
+}
+
 function writeArtifacts(directory, product, { info = productInfo(product), missingExe = false, sources = false } = {}) {
   const stem = `kedr-${product}-262.TEST`;
   const launcher = product === 'studio' ? 'bin/idea64.exe' : 'bin/pycharm64.exe';
@@ -125,6 +147,7 @@ function writeArtifacts(directory, product, { info = productInfo(product), missi
     'build.txt': `${info.productCode}-${info.buildNumber}`,
     'plugins/textmate-plugin/lib/bundles/go/package.json': '{"contributes":{"languages":[{"id":"go","extensions":[".go"]}]}}',
     'plugins/textmate-plugin/lib/bundles/go/syntaxes/go.tmLanguage.json': '{"scopeName":"source.go"}',
+    ...webBundleEntries(),
     [launcher]: fakeExe(),
     'jbr/bin/java.exe': fakeExe(),
     [vmOptions]: '-Xmx2048m\n',

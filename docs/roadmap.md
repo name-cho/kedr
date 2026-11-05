@@ -63,6 +63,18 @@ core, the type engine, Jupyter (via the notebook modules), pytest/unittest and t
 - [ ] Add Go toolchain discovery beyond `PATH` and run configurations for `go run`, `go test`, `go build`
 - [ ] Verify highlighting and the optional LSP integration in Windows release smoke tests
 
+## M4b — Web development
+
+- [x] Own file types and platform icons for CSS, SCSS, Less, JavaScript, JSX, TypeScript and TSX
+- [x] TextMate highlighting from the bundled grammars for HTML, CSS, JavaScript and TypeScript
+- [x] HTML editing through the platform XML plugin: completion, formatting, structure view, inspections
+- [x] New Project wizard for a static page (`index.html`, `styles/main.css`, `scripts/main.js`)
+- [x] Web Preview tool window: local HTTP server, reload on save, Open in Browser
+- [x] Installer file associations for the web extensions
+- [ ] Completion and refactoring for CSS, JavaScript and TypeScript (closed-source JetBrains Web plugins)
+- [ ] Emmet expansion for CSS
+- [ ] Run configuration that starts a project development server
+
 ## M5 — Russian localisation
 
 - [x] Certificate of license: `su.rus.language-pack` (Marketplace id 27449) is MIT, sources on gitflic — redistribution allowed

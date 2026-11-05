@@ -96,7 +96,7 @@ jobs:
             kedr-bazel-${{ inputs.product }}-
             kedr-bazel-
 
-      - name: Test local reporting and Go grammar
+      - name: Test local reporting, Go and web support
         if: inputs.product == 'studio'
         run: |
           $platformTests = '//platform/platform-tests:tests_test'
@@ -105,7 +105,9 @@ jobs:
             @{ Target = $platformTests; Filter = 'com.intellij.ide.plugins.advertiser.KedrCommercialSuggestionPolicyTest';
                Log = 'tests-suggestions.log' },
             @{ Target = '//plugins/textmate/tests:tests_test'; Filter = 'org.jetbrains.plugins.textmate.language.syntax.lexer.Go';
-               Log = 'tests-go.log' }
+               Log = 'tests-go.log' },
+            @{ Target = '//plugins/textmate/tests:tests_test'; Filter = 'org.jetbrains.plugins.textmate.language.syntax.lexer.Web';
+               Log = 'tests-web.log' }
           )
           foreach ($test in $tests) {
             cmd /c "bazel.cmd test $($test.Target) --test_filter=$($test.Filter) --keep_going > $($test.Log) 2>&1"
