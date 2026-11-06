@@ -17,10 +17,12 @@ import com.kedr.web.TypeScriptFileType
 import com.kedr.web.WebFileType
 import com.kedr.web.WebLanguage
 import com.kedr.web.WebNewProjectWizard
+import com.kedr.web.preview.WebPreviewServer
 import com.kedr.web.preview.WebPreviewTargets
 import org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateEditorHighlighterProvider
 import org.jetbrains.plugins.textmate.language.syntax.highlighting.TextMateSyntaxHighlighterFactory
 import org.junit.jupiter.api.Test
+import java.net.URI
 import java.nio.file.Files
 import javax.swing.Icon
 import kotlin.test.assertEquals
@@ -99,17 +101,70 @@ internal class WebSupportTest {
       Files.createDirectories(root.resolve("styles"))
       Files.writeString(root.resolve("index.html"), "<!DOCTYPE html>")
       Files.writeString(root.resolve("styles/main.css"), "body {}")
+      Files.writeString(root.resolve("a+b%20.html"), "plus and percent")
 
       assertEquals(root.resolve("index.html"), WebPreviewTargets.resolve(root, "/"))
       assertEquals(root.resolve("index.html"), WebPreviewTargets.resolve(root, "/index.html"))
       assertEquals(root.resolve("styles/main.css"), WebPreviewTargets.resolve(root, "/styles/main.css"))
-      assertEquals(root.resolve("styles/main.css"), WebPreviewTargets.resolve(root, "/" + WebPreviewTargets.encodePath("styles/main.css")))
+      assertEquals(root.resolve("a+b%20.html"), WebPreviewTargets.resolve(root, "/a+b%20.html"))
+      assertNull(WebPreviewTargets.resolve(root, "/bad\u0000path"))
       assertNull(WebPreviewTargets.resolve(root, "/styles/"))
       assertNull(WebPreviewTargets.resolve(root, "/missing.html"))
       assertNull(WebPreviewTargets.resolve(root, "/../outside.html"))
     }
     finally {
       root.toFile().deleteRecursively()
+    }
+  }
+
+  @Test
+  fun previewReloadPathsRespectDirectoryBoundaries() {
+    val root = java.nio.file.Path.of("project").toAbsolutePath().normalize()
+    assertTrue(WebPreviewTargets.isInside(root, root.resolve("styles/main.css").toString()))
+    assertFalse(WebPreviewTargets.isInside(root, root.resolveSibling("project-other").resolve("main.css").toString()))
+    assertFalse(WebPreviewTargets.isInside(root, root.resolve("../outside.css").toString()))
+  }
+
+  @Test
+  fun previewServesEncodedFileNamesOverHttp() {
+    val root = Files.createTempDirectory("kedr-web-preview-http")
+    val server = WebPreviewServer(root)
+    try {
+      val name = "a+b%20.html"
+      Files.writeString(root.resolve(name), "expected")
+      server.start()
+      val url = URI.create("${server.baseUrl}/${WebPreviewTargets.encodePath(name)}").toURL()
+      assertEquals("expected", url.openStream().bufferedReader().use { it.readText() })
+    }
+    finally {
+      server.stop()
+      root.toFile().deleteRecursively()
+    }
+  }
+
+  @Test
+  fun previewDoesNotFollowLinksOutsideTheProject() {
+    val parent = Files.createTempDirectory("kedr-web-preview-links")
+    try {
+      val root = Files.createDirectory(parent.resolve("project"))
+      val outside = Files.createDirectory(parent.resolve("outside"))
+      Files.writeString(outside.resolve("secret.html"), "secret")
+      try {
+        Files.createSymbolicLink(root.resolve("external"), outside)
+      }
+      catch (e: UnsupportedOperationException) {
+        return
+      }
+      catch (e: java.nio.file.FileSystemException) {
+        return
+      }
+      catch (e: SecurityException) {
+        return
+      }
+      assertNull(WebPreviewTargets.resolve(root, "/external/secret.html"))
+    }
+    finally {
+      parent.toFile().deleteRecursively()
     }
   }
 

@@ -9,6 +9,11 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
 import com.intellij.openapi.vfs.newvfs.events.VFileContentChangeEvent
+import com.intellij.openapi.vfs.newvfs.events.VFileCopyEvent
+import com.intellij.openapi.vfs.newvfs.events.VFileCreateEvent
+import com.intellij.openapi.vfs.newvfs.events.VFileDeleteEvent
+import com.intellij.openapi.vfs.newvfs.events.VFileMoveEvent
+import com.intellij.openapi.vfs.newvfs.events.VFilePropertyChangeEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.openapi.wm.ToolWindowManager
 import java.nio.file.Path
@@ -33,9 +38,11 @@ class WebPreviewService(private val project: Project) : Disposable {
     ApplicationManager.getApplication().messageBus.connect(this).subscribe(VirtualFileManager.VFS_CHANGES, object : BulkFileListener {
       override fun after(events: List<VFileEvent>) {
         val base = root ?: return
-        val touched = events.any { event -> event is VFileContentChangeEvent && isInside(base, event) }
+        val touched = events.any { event -> affectsRoot(base, event) }
         if (touched) {
-          ApplicationManager.getApplication().invokeLater { reloadTimer.restart() }
+          ApplicationManager.getApplication().invokeLater {
+            if (!project.isDisposed) reloadTimer.restart()
+          }
         }
       }
     })
@@ -120,9 +127,14 @@ class WebPreviewService(private val project: Project) : Disposable {
     return parent ?: Path.of(".").toAbsolutePath().normalize()
   }
 
-  private fun isInside(base: Path, event: VFileEvent): Boolean {
-    val file = event.file ?: return false
-    return file.path.startsWith(base.toString())
+  private fun affectsRoot(base: Path, event: VFileEvent): Boolean {
+    val paths = when (event) {
+      is VFileMoveEvent -> listOf(event.oldPath, event.newPath)
+      is VFilePropertyChangeEvent -> if (event.propertyName == VirtualFile.PROP_NAME) listOf(event.oldPath, event.newPath) else emptyList()
+      is VFileContentChangeEvent, is VFileCreateEvent, is VFileDeleteEvent, is VFileCopyEvent -> listOf(event.path)
+      else -> emptyList()
+    }
+    return paths.any { WebPreviewTargets.isInside(base, it) }
   }
 
   private fun notifyListeners() {

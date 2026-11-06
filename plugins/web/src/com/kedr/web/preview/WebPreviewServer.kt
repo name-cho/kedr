@@ -9,20 +9,22 @@ import java.util.concurrent.Executors
 
 class WebPreviewServer(private val root: Path) {
   private val server: HttpServer = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+  private val executor = Executors.newSingleThreadExecutor { task ->
+    Thread(task, "kedr-web-preview").apply { isDaemon = true }
+  }
 
   val baseUrl: String
     get() = "http://127.0.0.1:${server.address.port}"
 
   fun start() {
     server.createContext("/") { exchange -> serve(exchange) }
-    server.executor = Executors.newSingleThreadExecutor { task ->
-      Thread(task, "kedr-web-preview").apply { isDaemon = true }
-    }
+    server.executor = executor
     server.start()
   }
 
   fun stop() {
     server.stop(0)
+    executor.shutdownNow()
   }
 
   private fun serve(exchange: HttpExchange) {

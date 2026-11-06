@@ -49,9 +49,9 @@ The tool window `Web Preview` renders the page next to the editor.
 
 - The IDE starts an HTTP server on `127.0.0.1` with an ephemeral port and serves the project directory.
   Relative asset paths, ES modules and `fetch` therefore work as they do on a real server.
-- Path resolution rejects every request that escapes the project directory.
-- The page reloads 200 ms after a file in the project changes, which covers the save action of the IDE and
-  edits made by another tool.
+- Path resolution rejects traversal and symbolic links that resolve outside the project directory.
+- The page reloads 200 ms after file contents or project files change, including creates, deletes, moves
+  and renames reported by the IDE file watcher.
 - The tool window needs the JCEF browser, which both products bundle. When CEF cannot start
   (`JBCefApp.isSupported()` returns false), the panel shows a message and **Open in Browser** still works.
   The same button is the way to use a full browser at any time.
