@@ -49,12 +49,14 @@ The tool window `Web Preview` renders the page next to the editor.
 
 - The IDE starts an HTTP server on `127.0.0.1` with an ephemeral port and serves the project directory.
   Relative asset paths, ES modules and `fetch` therefore work as they do on a real server.
-- Path resolution rejects every request that escapes the project directory.
-- The page reloads 200 ms after a file in the project changes, which covers the save action of the IDE and
-  edits made by another tool.
+- Path resolution rejects traversal and symbolic links that resolve outside the project directory.
+- The page reloads 200 ms after file contents or project files change, including creates, deletes, moves
+  and renames reported by the IDE file watcher.
 - The tool window needs the JCEF browser, which both products bundle. When CEF cannot start
   (`JBCefApp.isSupported()` returns false), the panel shows a message and **Open in Browser** still works.
   The same button is the way to use a full browser at any time.
+- Enter an HTTP or HTTPS development server URL in the toolbar and choose **Open URL** to view a
+  separately started server in the same panel. The server itself is not started by Kedr.
 - `Tools | Open in Web Preview` and the editor context menu open the current HTML file in the tool window.
 
 The server listens on the loopback interface only. It stops when the project closes.
@@ -65,5 +67,5 @@ The server listens on the loopback interface only. It stops when the project clo
   closed-source JetBrains Web plugins (`JavaScript`, `CSS`, `HtmlTools` in the paid products). They cannot be
   built from this tree. Users who own a licence can still install those plugins from the Marketplace.
 - The preview server does not bundle, transpile or hot-reload anything. A project that needs a build step
-  should run its own development server and use **Open in Browser**.
+  should run its own development server and enter its URL in the preview or open it in a browser.
 - The preview has no code-to-page inspector and no live edit.

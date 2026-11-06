@@ -1,6 +1,7 @@
 package com.kedr.web.preview
 
-import java.net.URLDecoder
+import java.io.IOException
+import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -42,26 +43,43 @@ object WebPreviewTargets {
     CONTENT_TYPES[fileName.substringAfterLast('.', "").lowercase()] ?: "application/octet-stream"
 
   fun resolve(root: Path, requestPath: String): Path? {
-    val base = root.toAbsolutePath().normalize()
-    var target = base.resolve(decode(requestPath)).normalize()
-    if (Files.isDirectory(target)) {
-      target = target.resolve("index.html")
+    return try {
+      val base = root.toRealPath()
+      val relative = requestPath.trimStart('/')
+      var target = base.resolve(relative).normalize()
+      if (!target.startsWith(base)) return null
+      if (Files.isDirectory(target)) {
+        target = target.resolve("index.html")
+      }
+      val realTarget = target.toRealPath()
+      if (realTarget.startsWith(base) && Files.isRegularFile(realTarget)) realTarget else null
     }
-    return if (target.startsWith(base) && Files.isRegularFile(target)) target else null
+    catch (e: IOException) {
+      null
+    }
+    catch (e: IllegalArgumentException) {
+      null
+    }
+  }
+
+  fun isPreviewUrl(value: String): Boolean = try {
+    val uri = URI.create(value)
+    (uri.scheme.equals("http", ignoreCase = true) || uri.scheme.equals("https", ignoreCase = true)) &&
+    !uri.host.isNullOrEmpty() && uri.userInfo == null
+  }
+  catch (e: IllegalArgumentException) {
+    false
+  }
+
+  fun isInside(root: Path, path: String): Boolean = try {
+    Path.of(path).toAbsolutePath().normalize().startsWith(root.toAbsolutePath().normalize())
+  }
+  catch (e: IllegalArgumentException) {
+    false
   }
 
   fun encodePath(relativePath: String): String =
     relativePath.split('/').joinToString("/") { segment ->
       URLEncoder.encode(segment, StandardCharsets.UTF_8).replace("+", "%20")
     }
-
-  private fun decode(requestPath: String): String {
-    val relative = requestPath.substringBefore('?').substringBefore('#').trimStart('/')
-    return try {
-      URLDecoder.decode(relative, StandardCharsets.UTF_8)
-    }
-    catch (e: IllegalArgumentException) {
-      relative
-    }
-  }
 }
