@@ -118,6 +118,16 @@ internal class WebSupportTest {
   }
 
   @Test
+  fun previewAcceptsOnlyHttpUrls() {
+    assertTrue(WebPreviewTargets.isPreviewUrl("http://localhost:5173/"))
+    assertTrue(WebPreviewTargets.isPreviewUrl("https://example.com/page"))
+    assertFalse(WebPreviewTargets.isPreviewUrl("javascript:alert(1)"))
+    assertFalse(WebPreviewTargets.isPreviewUrl("file:///secret"))
+    assertFalse(WebPreviewTargets.isPreviewUrl("http://"))
+    assertFalse(WebPreviewTargets.isPreviewUrl("https://user:password@example.com/"))
+  }
+
+  @Test
   fun previewReloadPathsRespectDirectoryBoundaries() {
     val root = java.nio.file.Path.of("project").toAbsolutePath().normalize()
     assertTrue(WebPreviewTargets.isInside(root, root.resolve("styles/main.css").toString()))

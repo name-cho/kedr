@@ -15,6 +15,7 @@ import java.awt.FlowLayout
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
+import javax.swing.JTextField
 
 class WebPreviewToolWindowFactory : ToolWindowFactory, DumbAware {
   override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
@@ -36,6 +37,7 @@ private class WebPreviewPanel(project: Project) : JPanel(BorderLayout()), Dispos
   private val location = JBLabel("")
   private val onPreview: (String) -> Unit = { url -> navigate(url) }
   private var loaded = false
+  private var lastUrl: String? = null
 
   init {
     add(createToolbar(), BorderLayout.NORTH)
@@ -56,6 +58,18 @@ private class WebPreviewPanel(project: Project) : JPanel(BorderLayout()), Dispos
     reload.addActionListener { service.currentUrl()?.let(onPreview) }
     val external = JButton("Open in Browser")
     external.addActionListener { service.currentUrl()?.let { url -> BrowserUtil.browse(url) } }
+    val address = JTextField(24)
+    address.toolTipText = "Development server URL"
+    val openUrl = JButton("Open URL")
+    val navigateToAddress = {
+      if (!service.openUrl(address.text)) {
+        location.text = "Enter a valid HTTP or HTTPS URL."
+      }
+    }
+    openUrl.addActionListener { navigateToAddress() }
+    address.addActionListener { navigateToAddress() }
+    toolbar.add(address)
+    toolbar.add(openUrl)
     toolbar.add(reload)
     toolbar.add(external)
     return toolbar
@@ -64,13 +78,17 @@ private class WebPreviewPanel(project: Project) : JPanel(BorderLayout()), Dispos
   private fun navigate(url: String) {
     location.text = url
     val view = browser ?: return
-    if (loaded) {
+    if (loaded && lastUrl == url) {
+      view.cefBrowser.reloadIgnoreCache()
+    }
+    else if (loaded) {
       view.cefBrowser.loadURL(url)
     }
     else {
       loaded = true
       view.loadURL(url)
     }
+    lastUrl = url
   }
 
   override fun dispose() {

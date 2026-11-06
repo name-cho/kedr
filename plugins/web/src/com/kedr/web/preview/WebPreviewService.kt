@@ -41,7 +41,7 @@ class WebPreviewService(private val project: Project) : Disposable {
         val touched = events.any { event -> affectsRoot(base, event) }
         if (touched) {
           ApplicationManager.getApplication().invokeLater {
-            if (!project.isDisposed) reloadTimer.restart()
+            if (!project.isDisposed && root == base) reloadTimer.restart()
           }
         }
       }
@@ -57,6 +57,19 @@ class WebPreviewService(private val project: Project) : Disposable {
 
   fun unsubscribe(listener: (String) -> Unit) {
     listeners.remove(listener)
+  }
+
+  fun openUrl(value: String): Boolean {
+    val address = value.trim()
+    if (!WebPreviewTargets.isPreviewUrl(address)) return false
+    reloadTimer.stop()
+    server?.stop()
+    server = null
+    root = null
+    url = address
+    target = null
+    notifyListeners()
+    return true
   }
 
   fun open(file: VirtualFile) {

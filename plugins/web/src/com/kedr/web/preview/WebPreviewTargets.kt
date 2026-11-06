@@ -1,6 +1,7 @@
 package com.kedr.web.preview
 
 import java.io.IOException
+import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -59,6 +60,15 @@ object WebPreviewTargets {
     catch (e: IllegalArgumentException) {
       null
     }
+  }
+
+  fun isPreviewUrl(value: String): Boolean = try {
+    val uri = URI.create(value)
+    (uri.scheme.equals("http", ignoreCase = true) || uri.scheme.equals("https", ignoreCase = true)) &&
+    !uri.host.isNullOrEmpty() && uri.userInfo == null
+  }
+  catch (e: IllegalArgumentException) {
+    false
   }
 
   fun isInside(root: Path, path: String): Boolean = try {
